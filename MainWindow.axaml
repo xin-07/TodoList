@@ -1,9 +1,64 @@
-﻿<Window xmlns="https://github.com/avaloniaui"
+<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        xmlns:vm="using:TodoList.ViewModels"
+        xmlns:models="using:TodoList.Models"
+        mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="400"
         x:Class="TodoList.MainWindow"
-        Title="TodoList">
-    TodoList
+        x:Name="Root"
+        x:DataType="vm:MainWindowViewModel"
+        Title="TodoList"
+        Width="560" Height="400"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Styles>
+        <!-- 已完成任务标题置灰 -->
+        <Style Selector="TextBlock.todoTitle.completed">
+            <Setter Property="Foreground" Value="Gray" />
+            <Setter Property="Opacity" Value="0.6" />
+        </Style>
+    </Window.Styles>
+
+    <DockPanel Margin="16">
+
+        <!-- 顶部：输入 + 添加 -->
+        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+            <Button DockPanel.Dock="Right"
+                    Content="添加"
+                    Command="{Binding AddTaskCommand}" />
+            <TextBox PlaceholderText="输入任务，回车添加..."
+                     Text="{Binding NewTaskTitle, Mode=TwoWay}"
+                     KeyDown="OnNewTaskKeyDown" />
+        </DockPanel>
+
+        <!-- 底部：统计 -->
+        <TextBlock DockPanel.Dock="Bottom"
+                   Margin="0,12,0,0"
+                   HorizontalAlignment="Center"
+                   Foreground="Gray"
+                   Text="{Binding StatsText}" />
+
+        <!-- 中部：任务列表 -->
+        <ItemsControl ItemsSource="{Binding Items}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="models:TodoItem">
+                    <DockPanel Margin="0,2">
+                        <Button DockPanel.Dock="Right"
+                                Content="删除"
+                                Foreground="Red"
+                                Background="Transparent"
+                                Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RemoveTaskCommand}"
+                                CommandParameter="{Binding}" />
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <CheckBox IsChecked="{Binding IsCompleted, Mode=TwoWay}" />
+                            <TextBlock Classes.completed="{Binding IsCompleted}"
+                                       Text="{Binding Title}" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </DockPanel>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+    </DockPanel>
 </Window>
