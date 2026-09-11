@@ -36,18 +36,56 @@ dotnet publish -c Release
 
 ## 🖥️ 项目结构
 
-```
+<!-- AUTO-TREE:START -->
+```text
 TodoList/
-├── Database/            # SQLite 数据访问层（唯一接触 SQLite 的类）
-├── Models/              # 纯数据模型（TodoItem）
-├── Repositories/        # 单一权威数据源（只读投影 + 落库）
-├── ViewModels/          # MVVM 视图模型
-├── MainWindow.axaml     # 主窗口 UI（纯绑定）
-├── App.axaml.cs         # 装配：SQLite → Repository → ViewModel
-├── scripts/             # git 钩子辅助脚本（commit 检查、README 更新）
-├── AI_CONSTITUTION.md   # AI 协作宪法（提交等规约）
-└── CLAUDE.md / AGENTS.md
+├── .husky
+│   ├── commit-msg
+│   └── pre-commit
+├── Database                                           # SQLite 数据访问层：负责建库建表，以及底层增删改查 SQL。
+│   └── DatabaseService.cs                             # SQLite 数据访问层：负责建库建表，以及底层增删改查 SQL。
+├── docs
+│   └── spec
+│       └── complex
+│           ├── enhance-todo-features-IN_PROGRESS.md
+│           └── readme-auto-sync-DONE.md
+├── Models                                             # 任务优先级。低→高代表紧急/重要程度的递增。
+│   ├── TaskPriority.cs                                # 任务优先级。低→高代表紧急/重要程度的递增。
+│   ├── TaskTitle.cs                                   # 任务标题的"单一权威源"校验助手：Trim + 非空 + MaxLength。
+│   └── TodoItem.cs                                    # 任务数据模型（纯数据，无业务逻辑）。
+├── Repositories                                       # 任务仓库接口：定义"任务数据"的唯一边界。
+│   ├── ITodoRepository.cs                             # 任务仓库接口：定义"任务数据"的唯一边界。
+│   └── TodoRepository.cs                              # 任务仓库实现：应用内唯一权威数据源。
+├── scripts
+│   ├── check-commit-msg.js
+│   └── update-readme.js
+├── Tests                                              # TodoRepository 集成测试：全部使用临时独立的 SQLite 库（不触碰 data/todo.db），
+│   └── TodoList.Tests                                 # TodoRepository 集成测试：全部使用临时独立的 SQLite 库（不触碰 data/todo.db），
+│       ├── TodoList.Tests.csproj
+│       └── TodoRepositoryTests.cs                     # TodoRepository 集成测试：全部使用临时独立的 SQLite 库（不触碰 data/todo.db），
+├── ViewModels                                         # 到期提醒事件参数。
+│   ├── MainWindowViewModel.cs                         # 到期提醒事件参数。
+│   ├── RelayCommand.cs                                # 极简 ICommand 实现，避免引入额外 MVVM 框架。
+│   ├── TodoItemViewModel.cs                           # 优先级下拉的单个选项。
+│   └── ViewModelBase.cs                               # MVVM 基类，提供属性变更通知能力。
+├── .gitignore
+├── AGENTS.md
+├── AI_CONSTITUTION.md
+├── App.axaml
+├── App.axaml.cs                                       # 解析数据库绝对路径。
+├── app.manifest
+├── CLAUDE.md
+├── config.json
+├── MainWindow.axaml
+├── MainWindow.axaml.cs                                # 回车等同于点击"添加"。
+├── Program.cs                                         # Initialization code. Don't use any Avalonia, third-party APIs or any
+├── README.md
+├── TodoList.csproj
+└── TodoList.slnx
 ```
+<!-- AUTO-TREE:END -->
+
+> 注：`<!-- AUTO-TREE:START/END -->` 之间的内容由 `scripts/update-readme.js` 在每次 commit 时按实际文件系统自动生成（经 `.husky/pre-commit` 钩子触发），请勿手改。
 
 ## 🧠 架构：单一权威源
 
@@ -58,8 +96,12 @@ TodoList/
 - `MainWindowViewModel` 只消费仓库，不持有权威数据，杜绝「两份真相」。
 
 ```
-SQLite（权威源） ←─ DatabaseService ←─ TodoRepository（只读投影） ←─ ViewModel ←─ View
+<!-- AUTO-FLOW:START -->
+SQLite（权威源） ←─ DatabaseService ←─ TodoRepository（只读投影） ←─ MainWindowViewModel ←─ View
+<!-- AUTO-FLOW:END -->
 ```
+
+> 注：`<!-- AUTO-FLOW:START/END -->` 之间的内容由 `scripts/update-readme.js` 在每次 commit 时从 `App.axaml.cs` 装配代码自动推导（经 `.husky/pre-commit` 钩子触发），请勿手改。
 
 ## 📂 数据存储位置
 
@@ -74,7 +116,7 @@ SQLite（权威源） ←─ DatabaseService ←─ TodoRepository（只读投�
 <!-- AUTO-README:START -->
 | 项目 | 值 |
 | --- | --- |
-| 最近提交 | `54582a3` — feat: phase1 task core — edit title, priority, due date, reminders, tests, header layout |
+| 最近提交 | `db02654` — chore: refresh README auto version block to HEAD |
 | 提交时间 | 2026-09-11 |
 | 数据库文件 | `data/todo.db` |
 <!-- AUTO-README:END -->
