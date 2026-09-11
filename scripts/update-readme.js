@@ -25,8 +25,8 @@ const shortHash = git("log -1 --format=%h");
 const subject = git("log -1 --format=%s");
 const commitDate = git("log -1 --format=%cs");
 
-// 与 App.axaml.cs 中 AppContext.BaseDirectory/data/todo.db 对应的、dotnet run 时的相对路径。
-const DB_PATH = "bin/Debug/net8.0/data/todo.db";
+// 与 App.axaml.cs 中 ResolveDataDirectory() 对应的、项目根目录下的相对路径。
+const DB_PATH = "data/todo.db";
 
 const readmePath = path.join(root, "README.md");
 const markerStart = "<!-- AUTO-README:START -->";

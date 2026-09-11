@@ -63,7 +63,7 @@ SQLite（权威源） ←─ DatabaseService ←─ TodoRepository（只读投�
 
 ## 📂 数据存储位置
 
-数据库文件由 `App.axaml.cs` 以 `AppContext.BaseDirectory/data/todo.db` 计算。使用 `dotnet run` 时即项目编译输出目录下：`bin/Debug/net8.0/data/todo.db`。
+数据库文件位于**项目根目录**的 `data/todo.db`（由 `App.axaml.cs` 的 `ResolveDataDirectory()` 从输出目录向上定位到含 `.csproj` 的项目根得到）。打包发布时若无 `.csproj` 标记，则回退到程序输出目录下的 `data/`。
 
 该目录已被 `.gitignore` 排除，数据库不会进入版本库。
 
@@ -72,9 +72,9 @@ SQLite（权威源） ←─ DatabaseService ←─ TodoRepository（只读投�
 <!-- AUTO-README:START -->
 | 项目 | 值 |
 | --- | --- |
-| 最近提交 | `ee08a6c` — feat: implement TodoList MVP with SQLite single source of truth |
+| 最近提交 | `9bc586f` — feat: add auto-updated README and pre-commit hook |
 | 提交时间 | 2026-09-11 |
-| 数据库文件 | `bin/Debug/net8.0/data/todo.db` |
+| 数据库文件 | `data/todo.db` |
 <!-- AUTO-README:END -->
 
 > 注：`<!-- AUTO-README:START/END -->` 之间的内容由 `scripts/update-readme.js` 在每次 commit 时自动重写（经 `.husky/pre-commit` 钩子触发），请勿手改。
