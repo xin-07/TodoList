@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# pre-commit：每次提交前实时刷新 README 的版本信息，并重新暂存。
+node scripts/update-readme.js
+git add README.md
