@@ -116,7 +116,7 @@ SQLite（权威源） ←─ DatabaseService ←─ TodoRepository（只读投�
 <!-- AUTO-README:START -->
 | 项目 | 值 |
 | --- | --- |
-| 最近提交 | `db02654` — chore: refresh README auto version block to HEAD |
+| 最近提交 | `ea0bd46` — feat: add AUTO-TREE/AUTO-FLOW README sync; spec one-doc-per-task by type |
 | 提交时间 | 2026-09-11 |
 | 数据库文件 | `data/todo.db` |
 <!-- AUTO-README:END -->

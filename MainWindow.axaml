@@ -4,6 +4,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:TodoList.ViewModels"
         xmlns:models="using:TodoList.Models"
+        xmlns:c="using:Avalonia.Data.Converters"
         mc:Ignorable="d" d:DesignWidth="640" d:DesignHeight="420"
         x:Class="TodoList.MainWindow"
         x:Name="Root"
@@ -72,6 +73,7 @@
         <TextBlock DockPanel.Dock="Top"
                    Text="{Binding AddError}"
                    Classes="error"
+                   IsVisible="{Binding AddError, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}"
                    Margin="0,-6,0,8" />
 
         <!-- 底部：统计 -->
@@ -90,7 +92,7 @@
             <Grid ColumnDefinitions="4,46,*,88,118,60">
                 <Border Grid.Column="0" />
                 <TextBlock Grid.Column="1" Text="完成"
-                           Classes="header" VerticalAlignment="Center" />
+                           Classes="header" VerticalAlignment="Center" HorizontalAlignment="Center" />
                 <TextBlock Grid.Column="2" Text="标题"
                            Classes="header" VerticalAlignment="Center" />
                 <TextBlock Grid.Column="3" Text="优先级"
@@ -118,10 +120,11 @@
                         <!-- 完成 -->
                         <CheckBox Grid.Column="1"
                                   IsChecked="{Binding IsCompleted, Mode=TwoWay}"
+                                  HorizontalAlignment="Center"
                                   VerticalAlignment="Center" />
 
                         <!-- 标题：展示或原地编辑 -->
-                        <Grid Grid.Column="2">
+                        <Grid Grid.Column="2" VerticalAlignment="Center">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
@@ -143,11 +146,13 @@
                             </StackPanel>
                             <TextBlock Grid.Row="1"
                                        Text="{Binding EditError}"
-                                       Classes="error" />
+                                       Classes="error"
+                                       IsVisible="{Binding EditError, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
                         </Grid>
 
                         <!-- 优先级 -->
                         <ComboBox Grid.Column="3"
+                                  HorizontalAlignment="Stretch"
                                   VerticalAlignment="Center"
                                   ItemsSource="{Binding PriorityOptions}"
                                   SelectedItem="{Binding Priority}">
@@ -159,7 +164,7 @@
                         </ComboBox>
 
                         <!-- 截止日期：输入 + 到期文案/错误 -->
-                        <Grid Grid.Column="4" Margin="6,0,0,0">
+                        <Grid Grid.Column="4" VerticalAlignment="Center">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
@@ -172,15 +177,18 @@
                                        Text="{Binding DueText}"
                                        Classes="dueText"
                                        Classes.overdue="{Binding IsOverdue}"
-                                       Classes.dueToday="{Binding IsDueToday}" />
+                                       Classes.dueToday="{Binding IsDueToday}"
+                                       IsVisible="{Binding DueText, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
                             <TextBlock Grid.Row="1"
                                        Text="{Binding DueDateError}"
-                                       Classes="error" />
+                                       Classes="error"
+                                       IsVisible="{Binding DueDateError, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
                         </Grid>
 
                         <!-- 删除 -->
                         <Button Grid.Column="5"
                                 Content="删除"
+                                HorizontalAlignment="Stretch"
                                 Foreground="Red"
                                 Background="Transparent"
                                 Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RemoveTaskCommand}"
