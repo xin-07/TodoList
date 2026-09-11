@@ -63,16 +63,18 @@ SQLite（权威源） ←─ DatabaseService ←─ TodoRepository（只读投�
 
 ## 📂 数据存储位置
 
-数据库文件位于**项目根目录**的 `data/todo.db`（由 `App.axaml.cs` 的 `ResolveDataDirectory()` 从输出目录向上定位到含 `.csproj` 的项目根得到）。打包发布时若无 `.csproj` 标记，则回退到程序输出目录下的 `data/`。
+数据目录与数据库文件名在 `config.json` **单一权威定义**一次（`data.directory`、`data.dbFileName`），`App.axaml.cs` 与 `scripts/update-readme.js` 均读取它，不在代码里重复硬编码。
 
-该目录已被 `.gitignore` 排除，数据库不会进入版本库。
+实际数据库文件位于项目根 `/被定义的目录/文件名`（默认 `data/todo.db`）。`App.axaml.cs` 的 `ResolveProjectRoot()` 从输出目录向上定位项目根；发布环境无 `.csproj` 标记时回退到程序输出目录。
+
+`data/` 已被 `.gitignore` 排除，数据库不会进入版本库（`config.json` 本身会提交）。
 
 ### 版本与提交信息
 
 <!-- AUTO-README:START -->
 | 项目 | 值 |
 | --- | --- |
-| 最近提交 | `9bc586f` — feat: add auto-updated README and pre-commit hook |
+| 最近提交 | `9d43675` — chore: replace commit-msg checker with full conventional-type gate |
 | 提交时间 | 2026-09-11 |
 | 数据库文件 | `data/todo.db` |
 <!-- AUTO-README:END -->

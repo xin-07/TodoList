@@ -25,8 +25,12 @@ const shortHash = git("log -1 --format=%h");
 const subject = git("log -1 --format=%s");
 const commitDate = git("log -1 --format=%cs");
 
-// 与 App.axaml.cs 中 ResolveDataDirectory() 对应的、项目根目录下的相对路径。
-const DB_PATH = "data/todo.db";
+// 数据目录/文件名读取 config.json（单一权威源），禁止在此重复定义。
+const config = JSON.parse(readFileSync(path.join(root, "config.json"), "utf8"));
+const dataDir = config.data.directory;
+const dbFileName = config.data.dbFileName;
+const DB_PATH = `${dataDir}/${dbFileName}`; // README 展示用相对路径
+const dbAbsPath = path.join(root, dataDir, dbFileName); // 审查用绝对路径
 
 const readmePath = path.join(root, "README.md");
 const markerStart = "<!-- AUTO-README:START -->";
@@ -60,7 +64,7 @@ if (pattern.test(readme)) {
 }
 
 // 审查：数据库文件是否已生成（开发模式下预期路径）。
-if (!existsSync(path.join(root, DB_PATH))) {
+if (!existsSync(dbAbsPath)) {
   console.warn(
     `[update-readme] ⚠ 审查提示：数据库文件 ${DB_PATH} 暂不存在（尚未执行过 dotnet run 或已清理）。`,
   );

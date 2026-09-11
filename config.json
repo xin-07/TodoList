@@ -1,0 +1,6 @@
+{
+  "data": {
+    "directory": "data",
+    "dbFileName": "todo.db"
+  }
+}
