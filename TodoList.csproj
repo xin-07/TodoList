@@ -18,4 +18,10 @@
     </PackageReference>
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.12" />
   </ItemGroup>
+
+  <!-- 测试工程位于子目录 Tests/，默认 SDK 递归 glob 会把它误编译进主工程，故显式排除。 -->
+  <ItemGroup>
+    <Compile Remove="Tests\**\*.cs" />
+    <None Remove="Tests\**" />
+  </ItemGroup>
 </Project>

@@ -33,18 +33,69 @@ public class TodoRepository : ITodoRepository
 
     public event Action? Changed;
 
-    public void Add(string title)
+    public bool Add(string title)
     {
+        var error = TaskTitle.Validate(title);
+        if (error is not null)
+            return false;
+
+        var normalized = title.Trim();
         var item = new TodoItem
         {
             Id = Guid.NewGuid().ToString(),
-            Title = title,
+            Title = normalized,
             CreatedAt = DateTime.Now,
         };
 
         // 先写权威源，再同步投影。
         _db.Insert(item.Id, item.Title, item.CreatedAt);
         _items.Add(item);
+
+        Changed?.Invoke();
+        return true;
+    }
+
+    public bool Rename(string id, string title)
+    {
+        var error = TaskTitle.Validate(title);
+        if (error is not null)
+            return false;
+
+        var item = _items.FirstOrDefault(t => t.Id == id);
+        if (item is null)
+            return false;
+
+        // 先写权威源（DatabaseService 内部按 MaxLength 截断），再同步投影。
+        var normalized = title.Trim();
+        _db.UpdateTitle(id, normalized);
+        item.Title = normalized;
+
+        Changed?.Invoke();
+        return true;
+    }
+
+    public void SetPriority(string id, TaskPriority priority)
+    {
+        // 先写权威源。
+        _db.UpdatePriority(id, priority);
+
+        // 同步投影中的同一对象引用。
+        var item = _items.FirstOrDefault(t => t.Id == id);
+        if (item is not null)
+            item.Priority = priority;
+
+        Changed?.Invoke();
+    }
+
+    public void SetDueDate(string id, DateTime? date)
+    {
+        // 先写权威源。
+        _db.UpdateDueDate(id, date);
+
+        // 同步投影中的同一对象引用。
+        var item = _items.FirstOrDefault(t => t.Id == id);
+        if (item is not null)
+            item.DueDate = date;
 
         Changed?.Invoke();
     }

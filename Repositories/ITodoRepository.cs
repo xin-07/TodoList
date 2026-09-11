@@ -16,8 +16,17 @@ public interface ITodoRepository
     /// <summary>增删改发生后触发，供 ViewModel 刷新统计等派生数据。</summary>
     event Action? Changed;
 
-    /// <summary>新增一条任务。</summary>
-    void Add(string title);
+    /// <summary>新增一条任务。返回是否成功（空白/超长标题会被拒绝）。</summary>
+    bool Add(string title);
+
+    /// <summary>重命名一条任务的标题。返回是否成功（标题不存在或非法时返回 false）。</summary>
+    bool Rename(string id, string title);
+
+    /// <summary>设置一条任务的优先级。</summary>
+    void SetPriority(string id, TaskPriority priority);
+
+    /// <summary>设置一条任务的截止时间；传 null 表示清除。</summary>
+    void SetDueDate(string id, DateTime? date);
 
     /// <summary>切换任务的完成状态。true=已完成，false=未完成。</summary>
     void SetCompleted(string id, bool isCompleted);

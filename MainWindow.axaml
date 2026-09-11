@@ -4,12 +4,12 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:vm="using:TodoList.ViewModels"
         xmlns:models="using:TodoList.Models"
-        mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="400"
+        mc:Ignorable="d" d:DesignWidth="640" d:DesignHeight="420"
         x:Class="TodoList.MainWindow"
         x:Name="Root"
         x:DataType="vm:MainWindowViewModel"
         Title="TodoList"
-        Width="560" Height="400"
+        Width="640" Height="420"
         WindowStartupLocation="CenterScreen">
 
     <Window.Styles>
@@ -17,6 +17,42 @@
         <Style Selector="TextBlock.todoTitle.completed">
             <Setter Property="Foreground" Value="Gray" />
             <Setter Property="Opacity" Value="0.6" />
+        </Style>
+
+        <!-- 优先级高亮条 -->
+        <Style Selector="Border.priBar.high">
+            <Setter Property="Background" Value="#D84315" />
+        </Style>
+        <Style Selector="Border.priBar.medium">
+            <Setter Property="Background" Value="#FB8C00" />
+        </Style>
+        <Style Selector="Border.priBar.low">
+            <Setter Property="Background" Value="#0288D1" />
+        </Style>
+        <Style Selector="Border.priBar.none">
+            <Setter Property="Background" Value="Transparent" />
+        </Style>
+
+        <!-- 截止日期到期高亮 -->
+        <Style Selector="TextBlock.dueText.overdue">
+            <Setter Property="Foreground" Value="Red" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+        <Style Selector="TextBlock.dueText.dueToday">
+            <Setter Property="Foreground" Value="#FB8C00" />
+            <Setter Property="FontWeight" Value="Bold" />
+        </Style>
+
+        <!-- 校验错误提示 -->
+        <Style Selector="TextBlock.error">
+            <Setter Property="Foreground" Value="Red" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+
+        <!-- 列头样式 -->
+        <Style Selector="TextBlock.header">
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
         </Style>
     </Window.Styles>
 
@@ -32,6 +68,12 @@
                      KeyDown="OnNewTaskKeyDown" />
         </DockPanel>
 
+        <!-- 新增标题校验错误 -->
+        <TextBlock DockPanel.Dock="Top"
+                   Text="{Binding AddError}"
+                   Classes="error"
+                   Margin="0,-6,0,8" />
+
         <!-- 底部：统计 -->
         <TextBlock DockPanel.Dock="Bottom"
                    Margin="0,12,0,0"
@@ -39,23 +81,111 @@
                    Foreground="Gray"
                    Text="{Binding StatsText}" />
 
-        <!-- 中部：任务列表 -->
-        <ItemsControl ItemsSource="{Binding Items}">
+        <!-- 中部：列对齐的表头 -->
+        <Border DockPanel.Dock="Top"
+                Margin="0,0,0,6"
+                Padding="0,0,0,4"
+                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="4,46,*,88,118,60">
+                <Border Grid.Column="0" />
+                <TextBlock Grid.Column="1" Text="完成"
+                           Classes="header" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="2" Text="标题"
+                           Classes="header" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="3" Text="优先级"
+                           Classes="header" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                <TextBlock Grid.Column="4" Text="截止日期"
+                           Classes="header" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                <TextBlock Grid.Column="5" Text="操作"
+                           Classes="header" VerticalAlignment="Center" HorizontalAlignment="Center" />
+            </Grid>
+        </Border>
+
+        <!-- 中部：任务列表（网格化行，列与表头对齐） -->
+        <ItemsControl ItemsSource="{Binding DisplayItems}">
             <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="models:TodoItem">
-                    <DockPanel Margin="0,2">
-                        <Button DockPanel.Dock="Right"
+                <DataTemplate x:DataType="vm:TodoItemViewModel">
+                    <Grid ColumnDefinitions="4,46,*,88,118,60">
+                        <!-- 优先级高亮条 -->
+                        <Border Grid.Column="0"
+                                Classes="priBar"
+                                Classes.high="{Binding IsHigh}"
+                                Classes.medium="{Binding IsMedium}"
+                                Classes.low="{Binding IsLow}"
+                                Classes.none="{Binding IsNone}" />
+
+                        <!-- 完成 -->
+                        <CheckBox Grid.Column="1"
+                                  IsChecked="{Binding IsCompleted, Mode=TwoWay}"
+                                  VerticalAlignment="Center" />
+
+                        <!-- 标题：展示或原地编辑 -->
+                        <Grid Grid.Column="2">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="{Binding Title}"
+                                           Classes.completed="{Binding IsCompleted}"
+                                           Background="Transparent"
+                                           Focusable="True"
+                                           VerticalAlignment="Center"
+                                           IsVisible="{Binding IsNotEditing}"
+                                           DoubleTapped="OnTitleDoubleTapped"
+                                           KeyDown="OnTitleKeyDown" />
+                                <TextBox Text="{Binding EditText, Mode=TwoWay}"
+                                         VerticalAlignment="Center"
+                                         IsVisible="{Binding IsEditing}"
+                                         KeyDown="OnEditKeyDown"
+                                         LostFocus="OnEditLostFocus" />
+                            </StackPanel>
+                            <TextBlock Grid.Row="1"
+                                       Text="{Binding EditError}"
+                                       Classes="error" />
+                        </Grid>
+
+                        <!-- 优先级 -->
+                        <ComboBox Grid.Column="3"
+                                  VerticalAlignment="Center"
+                                  ItemsSource="{Binding PriorityOptions}"
+                                  SelectedItem="{Binding Priority}">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:PriorityOption">
+                                    <TextBlock Text="{Binding Label}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+
+                        <!-- 截止日期：输入 + 到期文案/错误 -->
+                        <Grid Grid.Column="4" Margin="6,0,0,0">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBox Text="{Binding DueDateText, Mode=TwoWay}"
+                                     VerticalAlignment="Center"
+                                     KeyDown="OnDueDateKeyDown"
+                                     LostFocus="OnDueDateLostFocus" />
+                            <TextBlock Grid.Row="1"
+                                       Text="{Binding DueText}"
+                                       Classes="dueText"
+                                       Classes.overdue="{Binding IsOverdue}"
+                                       Classes.dueToday="{Binding IsDueToday}" />
+                            <TextBlock Grid.Row="1"
+                                       Text="{Binding DueDateError}"
+                                       Classes="error" />
+                        </Grid>
+
+                        <!-- 删除 -->
+                        <Button Grid.Column="5"
                                 Content="删除"
                                 Foreground="Red"
                                 Background="Transparent"
                                 Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RemoveTaskCommand}"
                                 CommandParameter="{Binding}" />
-                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <CheckBox IsChecked="{Binding IsCompleted, Mode=TwoWay}" />
-                            <TextBlock Classes.completed="{Binding IsCompleted}"
-                                       Text="{Binding Title}" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </DockPanel>
+                    </Grid>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
         </ItemsControl>
