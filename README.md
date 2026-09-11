@@ -74,7 +74,7 @@ SQLite（权威源） ←─ DatabaseService ←─ TodoRepository（只读投�
 <!-- AUTO-README:START -->
 | 项目 | 值 |
 | --- | --- |
-| 最近提交 | `9d43675` — chore: replace commit-msg checker with full conventional-type gate |
+| 最近提交 | `54582a3` — feat: phase1 task core — edit title, priority, due date, reminders, tests, header layout |
 | 提交时间 | 2026-09-11 |
 | 数据库文件 | `data/todo.db` |
 <!-- AUTO-README:END -->
