@@ -104,8 +104,9 @@
             </Grid>
         </Border>
 
-        <!-- 中部：任务列表（网格化行，列与表头对齐） -->
-        <ItemsControl ItemsSource="{Binding DisplayItems}">
+        <!-- 中部：任务列表（网格化行，列与表头对齐；内容超出窗口高度时上下滚动） -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding DisplayItems}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:TodoItemViewModel">
                     <Grid ColumnDefinitions="4,46,*,88,118,60">
@@ -196,7 +197,8 @@
                     </Grid>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
-        </ItemsControl>
+            </ItemsControl>
+        </ScrollViewer>
 
     </DockPanel>
 </Window>

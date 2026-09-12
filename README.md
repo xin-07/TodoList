@@ -114,8 +114,8 @@ SQLite（权威源） ←─ DatabaseService ←─ TodoRepository（只读投�
 <!-- AUTO-README:START -->
 | 项目 | 值 |
 | --- | --- |
-| 最近提交 | `9a88a6b` — refactor: only show error/due texts when non-empty; align task row layout |
-| 提交时间 | 2026-09-11 |
+| 最近提交 | `557142d` — docs: integrate workflow constitution into 13 articles; reorganize spec by domain |
+| 提交时间 | 2026-09-12 |
 | 数据库文件 | `data/todo.db` |
 <!-- AUTO-README:END -->
 
