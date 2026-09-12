@@ -7,6 +7,13 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 
+  <!-- 单文件发布：仅当显式指定 RuntimeIdentifier 时生效，避免破坏无 RID 的普通发布。
+       IncludeNativeLibrariesForSelfExtract 把 SQLite 原生库一并打进单文件，运行时才临时解压。 -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' != ''">
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="12.1.1" />
     <PackageReference Include="Avalonia.Desktop" Version="12.1.1" />

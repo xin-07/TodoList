@@ -48,6 +48,18 @@ TodoList/
 │   └── pre-commit
 ├── Database                                           # SQLite 数据访问层：负责建库建表，以及底层增删改查 SQL。
 │   └── DatabaseService.cs                             # SQLite 数据访问层：负责建库建表，以及底层增删改查 SQL。
+├── dist
+│   ├── linux-x64
+│   │   ├── TodoList
+│   │   └── TodoList.pdb
+│   ├── osx-arm64
+│   │   ├── TodoList
+│   │   └── TodoList.pdb
+│   └── win-x64
+│       ├── libHarfBuzzSharp.pdb
+│       ├── libSkiaSharp.pdb
+│       ├── TodoList.exe
+│       └── TodoList.pdb
 ├── docs
 │   └── spec
 │       ├── docs
@@ -65,6 +77,7 @@ TodoList/
 │   └── TodoRepository.cs                              # 任务仓库实现：应用内唯一权威数据源。
 ├── scripts
 │   ├── check-commit-msg.js
+│   ├── publish-all.ps1
 │   └── update-readme.js
 ├── Tests                                              # TodoRepository 集成测试：全部使用临时独立的 SQLite 库（不触碰 data/todo.db），
 │   └── TodoList.Tests                                 # TodoRepository 集成测试：全部使用临时独立的 SQLite 库（不触碰 data/todo.db），
@@ -123,7 +136,7 @@ SQLite（权威源） ←─ DatabaseService ←─ TodoRepository（只读投�
 <!-- AUTO-README:START -->
 | 项目 | 值 |
 | --- | --- |
-| 最近提交 | `3bd7551` — feat: 截止日期严格格式校验；格式收敛到单一权威源 DueDate |
+| 最近提交 | `660e0c8` — docs: 更新 README 功能清单，与已实现功能保持一致 |
 | 提交时间 | 2026-09-12 |
 | 数据库文件 | `data/todo.db` |
 <!-- AUTO-README:END -->
