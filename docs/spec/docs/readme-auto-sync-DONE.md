@@ -1,5 +1,7 @@
 # README 自动同步（目录结构 + 调用顺序）— complex · DONE
 
+> **重定向**：本文档描述的「README 自动同步」方案已废弃（2026-09-12 用户决策）。README.md 现为**完全人工维护**：`.husky/pre-commit` 钩子与 `scripts/update-readme.js` 均已移除，提交时不再自动改写 README。请勿再按本文档实施。
+
 ## Why
 
 当前 README 的「项目结构」目录树与「架构：单一权威源」调用链均为**手写**，随代码演进已过时：

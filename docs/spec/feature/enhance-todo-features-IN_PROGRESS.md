@@ -200,7 +200,7 @@
 - [ ] 阶段八：工程化收尾
   - [ ] T8.1 装配收敛（手工 DI / 轻量容器），App.axaml.cs 单一入口
   - [ ] T8.2 `dotnet publish` 打包 + 应用图标
-  - [ ] T8.3 README 功能清单自动同步（更新 update-readme.js）
+  - [ ] T8.3 ~~README 功能清单自动同步（更新 update-readme.js）~~ **（已取消 2026-09-12：README 改为完全人工维护，脚本与钩子已移除）**
   - [ ] T8.4 全程回归：`dotnet build`/`dotnet test` 全绿
   - [ ] 验证：发布可运行；测试全绿；文档一致
 
@@ -257,7 +257,7 @@
 ## 阶段八 · 工程化
 - [ ] 装配单一入口（DI 收敛）
 - [ ] 发布可运行 + 图标
-- [ ] README 功能清单自动同步
+- [ ] ~~README 功能清单自动同步~~（已取消：README 全人工维护）
 - [ ] `dotnet build`/`dotnet test` 全绿
 
 ## 全局约束（贯穿所有阶段）
