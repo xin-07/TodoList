@@ -2,15 +2,12 @@
 
 一个基于 **Avalonia (12.1.1) + .NET 8** 的跨平台桌面待办事项应用，采用 **SQLite 作为单一权威数据源** 的 MVVM 架构。
 
-## ✨ 功能（当前 MVP）
+## ✨ 功能
 
 - 任务管理：输入 + 添加、勾选完成、删除
 - 完成置灰展示
 - 已办/总数统计
 - 深色 / 浅色主题跟随系统
-
-### 规划中（后续迭代）
-分类、标签、优先级、截止日期、提醒、云同步/WebDAV、数据导入导出、移动端。
 
 ## 🔧 技术栈
 
@@ -46,9 +43,10 @@ TodoList/
 │   └── DatabaseService.cs                             # SQLite 数据访问层：负责建库建表，以及底层增删改查 SQL。
 ├── docs
 │   └── spec
-│       └── complex
-│           ├── enhance-todo-features-IN_PROGRESS.md
-│           └── readme-auto-sync-DONE.md
+│       ├── docs
+│       │   └── readme-auto-sync-DONE.md
+│       └── feature
+│           └── enhance-todo-features-IN_PROGRESS.md
 ├── Models                                             # 任务优先级。低→高代表紧急/重要程度的递增。
 │   ├── TaskPriority.cs                                # 任务优先级。低→高代表紧急/重要程度的递增。
 │   ├── TaskTitle.cs                                   # 任务标题的"单一权威源"校验助手：Trim + 非空 + MaxLength。
@@ -116,15 +114,24 @@ SQLite（权威源） ←─ DatabaseService ←─ TodoRepository（只读投�
 <!-- AUTO-README:START -->
 | 项目 | 值 |
 | --- | --- |
-| 最近提交 | `ea0bd46` — feat: add AUTO-TREE/AUTO-FLOW README sync; spec one-doc-per-task by type |
+| 最近提交 | `9a88a6b` — refactor: only show error/due texts when non-empty; align task row layout |
 | 提交时间 | 2026-09-11 |
 | 数据库文件 | `data/todo.db` |
 <!-- AUTO-README:END -->
 
 > 注：`<!-- AUTO-README:START/END -->` 之间的内容由 `scripts/update-readme.js` 在每次 commit 时自动重写（经 `.husky/pre-commit` 钩子触发），请勿手改。
 
+## 📁 文档目录
+
+| 目录 | 用途 |
+| --- | --- |
+| `docs/AI-workflow/` | AI 协作工作流相关文档 |
+| `docs/rule/` | 存储 `AI_CONSTITUTION.md` 中每一条的详细规则 |
+| `docs/spec/<问题领域>/` | 按问题领域分类的 SPEC（feature / docs / test ...），每个问题只允许一个文档 |
+
 ## 📝 项目规约
 
-- 遵循 `AI_CONSTITUTION.md`：代码变更的 commit 必须包含 `Why:` 与 `What:`（根因三选一：design/code/test wrong）。
+- 遵循 `AI_CONSTITUTION.md`（共 13 条）：涵盖通用软件工程准则（文档-代码共同维护、根因分析、设计契约、单一权威源、no-patchwork 等）与本项目特定约定（commit 前展示确认、任务三分法、spec 领域目录）。
+- 代码变更的 commit 必须包含 `Why:` 与 `What:`（根因三选一：design/code/test wrong）。
 - commit 门禁由 `scripts/check-commit-msg.js` 经 `.husky/commit-msg` 强制执行。
 - 技术债须标注 `// DEFERRED:`，禁止裸 TODO。
