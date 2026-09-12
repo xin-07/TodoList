@@ -71,6 +71,9 @@ public sealed class TodoItemViewModel : ViewModelBase
         set => _item.IsCompleted = value;
     }
 
+    /// <summary>已完成时整行淡化（1=正常，0.55=完成置灰）。普通属性绑定对变更实时响应。</summary>
+    public double RowOpacity => _item.IsCompleted ? 0.55 : 1.0;
+
     /// <summary>优先级下拉选项。</summary>
     public IReadOnlyList<PriorityOption> PriorityOptions => _priorityOptions;
 
@@ -298,8 +301,13 @@ public sealed class TodoItemViewModel : ViewModelBase
                 OnPropertyChanged(nameof(IsLow));
                 OnPropertyChanged(nameof(IsNone));
                 break;
-            case nameof(TodoItem.DueDate):
             case nameof(TodoItem.IsCompleted):
+                // 广播完成状态与整行透明度，保证视图实时刷新（完成置灰）。
+                OnPropertyChanged(nameof(IsCompleted));
+                OnPropertyChanged(nameof(RowOpacity));
+                RefreshDue();
+                break;
+            case nameof(TodoItem.DueDate):
                 RefreshDue();
                 break;
         }

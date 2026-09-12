@@ -62,6 +62,13 @@
   - **THEN** 触发一次桌面系统通知提示该任务到期。
 - **备注**：提醒仅桌面端；不引入 WebDAV。
 
+### Requirement: 完成置灰展示
+系统 SHALL 在任务勾选完成后整行淡化显示（含标题/优先级条/截止日期），区分未完成任务。
+- **Scenario: 勾选后整行置灰**
+  - **WHEN** 用户勾选某任务为完成
+  - **THEN** 该行整行淡化；取消勾选后恢复；重启/重排后状态保持。
+- **修根因**：类绑定(pseudo-class)运行时难刷新，改用普通属性绑定 `Opacity` + ViewModel 广播 `RowOpacity`，实时响应勾选。
+
 ### Requirement: 分类与标签（[DEFERRED] 用户暂不采用）
 系统 SHALL 支持分类（单属）、标签（多对多）与二者筛选。
 - **Scenario: 按分类/标签筛选**
@@ -225,6 +232,7 @@
 - [x] 到期触发桌面提醒（不引入 WebDAV）
 - [x] 输入校验覆盖空值/去空白/超长（统一 `TaskTitle` 单一定义）
 - [x] `TodoRepository` 单元测试通过（增/改/删/持久化）
+- [x] 已完成任务整行置灰（勾选实时淡化；绑定行 Opacity + ViewModel 广播 RowOpacity）
 - [x] `dotnet build` 0 错误
 
 ## 阶段二 · 分类与标签（[DEFERRED] 用户暂不采用）

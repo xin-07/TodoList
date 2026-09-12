@@ -14,12 +14,6 @@
         WindowStartupLocation="CenterScreen">
 
     <Window.Styles>
-        <!-- 已完成任务标题置灰 -->
-        <Style Selector="TextBlock.todoTitle.completed">
-            <Setter Property="Foreground" Value="Gray" />
-            <Setter Property="Opacity" Value="0.6" />
-        </Style>
-
         <!-- 优先级高亮条 -->
         <Style Selector="Border.priBar.high">
             <Setter Property="Background" Value="#D84315" />
@@ -109,7 +103,8 @@
             <ItemsControl ItemsSource="{Binding DisplayItems}">
             <ItemsControl.ItemTemplate>
                 <DataTemplate x:DataType="vm:TodoItemViewModel">
-                    <Grid ColumnDefinitions="4,46,*,88,118,60">
+                    <Grid ColumnDefinitions="4,46,*,88,118,60"
+                          Opacity="{Binding RowOpacity}">
                         <!-- 优先级高亮条 -->
                         <Border Grid.Column="0"
                                 Classes="priBar"
@@ -132,7 +127,6 @@
                             </Grid.RowDefinitions>
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <TextBlock Text="{Binding Title}"
-                                           Classes.completed="{Binding IsCompleted}"
                                            Background="Transparent"
                                            Focusable="True"
                                            VerticalAlignment="Center"
@@ -151,8 +145,9 @@
                                        IsVisible="{Binding EditError, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
                         </Grid>
 
-                        <!-- 优先级 -->
+                        <!-- 优先级（右外边距形成与截止日期列的间隔） -->
                         <ComboBox Grid.Column="3"
+                                  Margin="0,0,8,0"
                                   HorizontalAlignment="Stretch"
                                   VerticalAlignment="Center"
                                   ItemsSource="{Binding PriorityOptions}"
