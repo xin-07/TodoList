@@ -171,6 +171,7 @@
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
                             <TextBox Text="{Binding DueDateText, Mode=TwoWay}"
+                                     PlaceholderText="{Binding DueDatePlaceholder}"
                                      VerticalAlignment="Center"
                                      KeyDown="OnDueDateKeyDown"
                                      LostFocus="OnDueDateLostFocus" />

@@ -45,7 +45,7 @@ public sealed class TodoItemViewModel : ViewModelBase
         _item = item;
         _item.PropertyChanged += OnItemPropertyChanged;
         _editText = item.Title;
-        _dueDateText = item.DueDate?.ToString("yyyy-MM-dd") ?? "";
+        _dueDateText = item.DueDate.HasValue ? DueDate.ToDisplayString(item.DueDate.Value) : "";
         RefreshDue();
 
         BeginEditCommand = new RelayCommand(_ => BeginEdit());
@@ -140,6 +140,9 @@ public sealed class TodoItemViewModel : ViewModelBase
 
     public string DueDateError { get => _dueDateError; private set => SetProperty(ref _dueDateError, value); }
 
+    /// <summary>截止日期输入框占位提示：显示当天日期作为输入模板，随每天日期更新。</summary>
+    public string DueDatePlaceholder => DueDate.ToDisplayString(DateTime.Today);
+
     /// <summary>到期展示文案（如"已过期""今天到期"，未设置则为空串）。</summary>
     public string DueText { get => _dueText; private set => SetProperty(ref _dueText, value); }
 
@@ -210,14 +213,15 @@ public sealed class TodoItemViewModel : ViewModelBase
             return;
         }
 
-        if (DateTime.TryParse(text, out var date))
+        var date = DueDate.TryParse(text);
+        if (date.HasValue)
         {
-            _repo.SetDueDate(_item.Id, date);
+            _repo.SetDueDate(_item.Id, date.Value);
             DueDateError = "";
         }
         else
         {
-            DueDateError = "日期无效（示例：2026-09-11）";
+            DueDateError = $"日期格式无效，请输入 {DueDate.FormatHint}（示例：{DueDate.ToDisplayString(DateTime.Today)}）";
         }
     }
 
@@ -240,6 +244,7 @@ public sealed class TodoItemViewModel : ViewModelBase
             IsOverdue = false;
             IsDueToday = false;
             SetDueDateText("");
+            OnPropertyChanged(nameof(DueDatePlaceholder));
             return;
         }
 
@@ -262,10 +267,10 @@ public sealed class TodoItemViewModel : ViewModelBase
         {
             IsOverdue = false;
             IsDueToday = false;
-            DueText = due.Value.ToString("MM-dd");
+            DueText = DueDate.ToShortDisplayString(due.Value);
         }
 
-        SetDueDateText(due.Value.ToString("yyyy-MM-dd"));
+        SetDueDateText(DueDate.ToDisplayString(due.Value));
     }
 
     private void SetDueDateText(string value)

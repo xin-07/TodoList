@@ -46,8 +46,10 @@ TodoList/
 │       ├── docs
 │       │   └── readme-auto-sync-DONE.md
 │       └── feature
+│           ├── due-date-input-validation-DONE.md
 │           └── enhance-todo-features-IN_PROGRESS.md
-├── Models                                             # 任务优先级。低→高代表紧急/重要程度的递增。
+├── Models                                             # 截止日期格式的"单一权威源"助手：定义全应用统一的日期格式常量与严格解析逻辑。
+│   ├── DueDate.cs                                     # 截止日期格式的"单一权威源"助手：定义全应用统一的日期格式常量与严格解析逻辑。
 │   ├── TaskPriority.cs                                # 任务优先级。低→高代表紧急/重要程度的递增。
 │   ├── TaskTitle.cs                                   # 任务标题的"单一权威源"校验助手：Trim + 非空 + MaxLength。
 │   └── TodoItem.cs                                    # 任务数据模型（纯数据，无业务逻辑）。
@@ -114,7 +116,7 @@ SQLite（权威源） ←─ DatabaseService ←─ TodoRepository（只读投�
 <!-- AUTO-README:START -->
 | 项目 | 值 |
 | --- | --- |
-| 最近提交 | `557142d` — docs: integrate workflow constitution into 13 articles; reorganize spec by domain |
+| 最近提交 | `40be33a` — feat: 任务列表超出窗口高度时支持上下滚动 |
 | 提交时间 | 2026-09-12 |
 | 数据库文件 | `data/todo.db` |
 <!-- AUTO-README:END -->
