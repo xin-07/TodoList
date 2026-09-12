@@ -119,8 +119,8 @@
                                   HorizontalAlignment="Center"
                                   VerticalAlignment="Center" />
 
-                        <!-- 标题：展示或原地编辑 -->
-                        <Grid Grid.Column="2" VerticalAlignment="Center">
+                        <!-- 标题：展示或原地编辑（右外边距形成与优先级列的间隔） -->
+                        <Grid Grid.Column="2" Margin="0,0,8,0" VerticalAlignment="Center">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
@@ -159,8 +159,8 @@
                             </ComboBox.ItemTemplate>
                         </ComboBox>
 
-                        <!-- 截止日期：输入 + 到期文案/错误 -->
-                        <Grid Grid.Column="4" VerticalAlignment="Center">
+                        <!-- 截止日期：输入 + 到期文案/错误（右外边距形成与操作列的间隔） -->
+                        <Grid Grid.Column="4" Margin="0,0,8,0" VerticalAlignment="Center">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
