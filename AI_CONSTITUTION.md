@@ -57,6 +57,7 @@
     - `docs/spec/feature/task-DONE.md`（已完成，状态推进时同步改名）
   - **research（研究）**：只写文档/研究报告，不写实现代码。
 - 任何功能修改/新增完成后，都必须交给用户测试验证，获得用户反馈后才算完成；AI 不自行启动应用。
+- AI 侧变更后验证（编译 + 单元测试）为强制义务，细则见 [docs/rule/article-05-post-change-verification.md](docs/rule/article-05-post-change-verification.md)。
 
 ---
 
