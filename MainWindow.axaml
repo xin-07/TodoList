@@ -105,7 +105,7 @@
                                                 Padding="4,0"
                                                 ToolTip.Tip="删除文件夹"
                                                 IsVisible="{Binding IsFolder}"
-                                                Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteFolderCommand}"
+                                                Command="{Binding $parent[Window].DataContext.DeleteFolderCommand}"
                                                 CommandParameter="{Binding}">
                                             <TextBlock Text="🗑"
                                                        Foreground="Red"
@@ -124,7 +124,7 @@
                                 Margin="6,0,0,0"
                                 Content="确认"
                                 Command="{Binding AddFolderCommand}" />
-                        <TextBox PlaceholderText="输入文件夹名称..."
+                        <TextBox Watermark="输入文件夹名称..."
                                  Text="{Binding NewFolderName, Mode=TwoWay}"
                                  KeyDown="OnNewFolderKeyDown" />
                         <TextBlock DockPanel.Dock="Bottom"
@@ -151,7 +151,7 @@
                         Margin="8,0,0,0"
                         Content="添加"
                         Command="{Binding AddTaskCommand}" />
-                <TextBox PlaceholderText="输入关键字搜索已有任务，或输入新任务，回车添加..."
+                <TextBox Watermark="输入关键字搜索已有任务，或输入新任务，回车添加..."
                          Text="{Binding NewTaskTitle, Mode=TwoWay}"
                          KeyDown="OnNewTaskKeyDown" />
             </DockPanel>
@@ -276,7 +276,7 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <TextBox Text="{Binding DueDateText, Mode=TwoWay}"
-                                         PlaceholderText="{Binding DueDatePlaceholder}"
+                                         Watermark="{Binding DueDatePlaceholder}"
                                          VerticalAlignment="Center"
                                          KeyDown="OnDueDateKeyDown"
                                          LostFocus="OnDueDateLostFocus" />
@@ -298,7 +298,7 @@
                                     HorizontalAlignment="Stretch"
                                     Foreground="Red"
                                     Background="Transparent"
-                                    Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RemoveTaskCommand}"
+                                    Command="{Binding $parent[Window].DataContext.RemoveTaskCommand}"
                                     CommandParameter="{Binding}" />
                         </Grid>
                     </DataTemplate>
