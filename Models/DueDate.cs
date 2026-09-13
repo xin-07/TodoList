@@ -15,9 +15,6 @@ public static class DueDate
     /// <summary>向用户展示的输入格式提示（与 <see cref="Format"/> 一致）。</summary>
     public const string FormatHint = Format;
 
-    /// <summary>到期展示文案的简写格式（月-日，如"09-12"）。唯一固定点。</summary>
-    public const string DisplayFormat = "MM-dd";
-
     /// <summary>
     /// 严格按 <see cref="Format"/> 解析截止日期字符串。
     /// 合法返回对应日期；非法返回 null（空串/空白亦视为未设置）。
@@ -36,7 +33,4 @@ public static class DueDate
 
     /// <summary>将日期格式化为标准字符串。</summary>
     public static string ToDisplayString(DateTime value) => value.ToString(Format, CultureInfo.InvariantCulture);
-
-    /// <summary>将日期格式化为简写展示串（月-日）。</summary>
-    public static string ToShortDisplayString(DateTime value) => value.ToString(DisplayFormat, CultureInfo.InvariantCulture);
 }

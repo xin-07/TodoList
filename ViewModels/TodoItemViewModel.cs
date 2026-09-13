@@ -268,9 +268,10 @@ public sealed class TodoItemViewModel : ViewModelBase
         }
         else
         {
+            // 未来日期：输入框已展示完整日期，下方不再重复显示。
             IsOverdue = false;
             IsDueToday = false;
-            DueText = DueDate.ToShortDisplayString(due.Value);
+            DueText = "";
         }
 
         SetDueDateText(DueDate.ToDisplayString(due.Value));
