@@ -51,6 +51,8 @@ public class MainWindowViewModel : ViewModelBase
     private readonly ITodoRepository _repo;
     private readonly Dictionary<string, TodoItemViewModel> _vmById = new();
     private readonly Dictionary<string, SidebarItemViewModel> _folderSidebarById = new();
+    /// <summary>上次重建边栏时的文件夹快照（Id+Name），用于判断是否需要重建。</summary>
+    private List<(string Id, string Name)> _folderSnapshot = new();
     private readonly ObservableCollection<TodoItemViewModel> _display = new();
     private readonly ObservableCollection<TodoItemViewModel> _filterDisplay = new();
     private readonly ReadOnlyObservableCollection<TodoItemViewModel> _filterView;
@@ -259,6 +261,20 @@ public class MainWindowViewModel : ViewModelBase
         return vm;
     }
 
+    /// <summary>判断仓库中的文件夹集合相对上次重建是否变化（增删或改名）。</summary>
+    private bool FoldersChanged()
+    {
+        var current = _repo.Folders.Select(f => (f.Id, f.Name)).ToList();
+        if (current.Count != _folderSnapshot.Count)
+            return true;
+        for (var i = 0; i < current.Count; i++)
+        {
+            if (current[i] != _folderSnapshot[i])
+                return true;
+        }
+        return false;
+    }
+
     /// <summary>重建边栏与下拉选项，并刷新各文件夹内置条目数。</summary>
     private void RebuildSidebar()
     {
@@ -285,6 +301,9 @@ public class MainWindowViewModel : ViewModelBase
 
         // 刷新"全部任务"计数。
         _sidebarItems[0].ItemCount = total;
+
+        // 记录本次重建后的文件夹快照，供 FoldersChanged 判断。
+        _folderSnapshot = _repo.Folders.Select(f => (f.Id, f.Name)).ToList();
 
         // 若当前选中项已失效（文件夹被删）则回退，否则保持。
         var preserve = _selectedSidebar?.Key;
@@ -329,7 +348,13 @@ public class MainWindowViewModel : ViewModelBase
     {
         RefreshStats();
         CleanAlarmedIds();
-        RebuildSidebar();
+        // 仅当文件夹集合变化（增删/改名）时才重建边栏与下拉选项；
+        // 否则只刷新计数。行内下拉选中会经 SelectedFolder 写库并同步走到这里，
+        // 若无条件重建会清空该下拉自己的 ItemsSource，重入导致崩溃。
+        if (FoldersChanged())
+            RebuildSidebar();
+        else
+            RefreshSidebarCounts();
         Reorder();
         ApplyFilter();
     }
