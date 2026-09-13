@@ -37,7 +37,8 @@ public class MainWindowViewModel : ViewModelBase
     private readonly ITodoRepository _repo;
     private readonly Dictionary<string, TodoItemViewModel> _vmById = new();
     private readonly ObservableCollection<TodoItemViewModel> _display = new();
-    private readonly ReadOnlyObservableCollection<TodoItemViewModel> _displayView;
+    private readonly ObservableCollection<TodoItemViewModel> _filterDisplay = new();
+    private readonly ReadOnlyObservableCollection<TodoItemViewModel> _filterView;
     private readonly HashSet<string> _alarmedIds = new();
     private readonly DispatcherTimer _alarmTimer;
 
@@ -49,7 +50,7 @@ public class MainWindowViewModel : ViewModelBase
     public MainWindowViewModel(ITodoRepository repo)
     {
         _repo = repo;
-        _displayView = new ReadOnlyObservableCollection<TodoItemViewModel>(_display);
+        _filterView = new ReadOnlyObservableCollection<TodoItemViewModel>(_filterDisplay);
 
         RefreshStats();
         _repo.Changed += OnRepoChanged;
@@ -64,6 +65,7 @@ public class MainWindowViewModel : ViewModelBase
             observable.CollectionChanged += OnCollectionChanged;
 
         Reorder();
+        ApplyFilter();
 
         AddTaskCommand = new RelayCommand(_ => AddTask());
         RemoveTaskCommand = new RelayCommand(p => RemoveTask(p as TodoItemViewModel));
@@ -80,13 +82,17 @@ public class MainWindowViewModel : ViewModelBase
     /// <summary>任务列表（只读投影，原样）。</summary>
     public ReadOnlyObservableCollection<TodoItem> Items => _repo.Items;
 
-    /// <summary>排序后的展示列表：按优先级高→低展示。</summary>
-    public ReadOnlyObservableCollection<TodoItemViewModel> DisplayItems => _displayView;
+    /// <summary>排序后的展示列表：按优先级高→低展示，并按输入框内容过滤。</summary>
+    public ReadOnlyObservableCollection<TodoItemViewModel> DisplayItems => _filterView;
 
     public string NewTaskTitle
     {
         get => _newTaskTitle;
-        set => SetProperty(ref _newTaskTitle, value);
+        set
+        {
+            if (SetProperty(ref _newTaskTitle, value))
+                ApplyFilter();
+        }
     }
 
     /// <summary>新增标题的校验错误提示。</summary>
@@ -160,6 +166,7 @@ public class MainWindowViewModel : ViewModelBase
         }
 
         Reorder();
+        ApplyFilter();
     }
 
     private void OnRepoChanged()
@@ -167,6 +174,7 @@ public class MainWindowViewModel : ViewModelBase
         RefreshStats();
         CleanAlarmedIds();
         Reorder();
+        ApplyFilter();
     }
 
     /// <summary>按优先级从高到低（稳定）重排展示列表。</summary>
@@ -199,6 +207,21 @@ public class MainWindowViewModel : ViewModelBase
         foreach (var vm in _vmById.Values)
             vm.RefreshDue();
         ScanDueAlarms();
+    }
+
+    /// <summary>
+    /// 依据输入框内容重建过滤后的展示列表：
+    /// 标题包含输入内容（忽略大小写）的任务保留；空白输入则展示全部。
+    /// </summary>
+    private void ApplyFilter()
+    {
+        var query = _newTaskTitle.Trim();
+        _filterDisplay.Clear();
+        foreach (var vm in _display)
+        {
+            if (query.Length == 0 || vm.Title.Contains(query, StringComparison.OrdinalIgnoreCase))
+                _filterDisplay.Add(vm);
+        }
     }
 
     private void ScanDueAlarms()
