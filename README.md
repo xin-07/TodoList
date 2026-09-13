@@ -5,16 +5,18 @@
 ## ✨ 功能
 
 - 任务管理：输入 + 添加、勾选完成、删除
-- 实时过滤：在顶部输入框键入关键词，下方任务列表即时按标题过滤（忽略大小写），清空即恢复全量
+- 文件夹收纳：任务行下拉归属到文件夹或「未归类」（单归属），左侧边栏「全部任务 / 各文件夹 / 未归类」三视图切换，各视图显示条目数
+- 文件夹管理：「＋ 新建文件夹」按钮展开命名输入（回车 / 确认创建，点击输入区外收起）；双击文件夹名原地重命名；🗑 图标触发删除确认，确认后连同其内条目一并删除
+- 实时过滤：在顶部输入框键入关键词，当前视图内任务列表即时按标题过滤（忽略大小写），清空即恢复当前视图全量
 - 任务标题原地编辑（双击 / F2 进入编辑，Enter 提交、Esc 取消、失焦保存）
 - 优先级：无 / 低 / 中 / 高 四档，行首高亮条，列表按优先级从高到低排序
 - 截止日期：严格 `yyyy-MM-dd` 格式校验，输入框占位提示当天日期，到期展示「今天到期 / 已过期」
 - 到期桌面通知提醒（应用运行期间每分钟检查未完成且已到期的任务）
-- 输入校验：新增与编辑统一校验（空 / 去空白 / 超长 100 字符）
+- 输入校验：新增与编辑统一校验（空 / 去空白 / 标题超长 100 字符、文件夹名超长 50 字符）
 - 完成置灰展示
 - 已办 / 总数统计
 - 任务列表超出窗口高度时上下滚动
-- `TodoRepository` 集成测试（隔离临时 SQLite，不触碰 `data/todo.db`）
+- `TodoRepository` 集成测试（隔离临时 SQLite，不触碰 `data/todo.db`，覆盖任务与文件夹增删改、归属、联删与旧库迁移）
 
 ## 🔧 技术栈
 
@@ -73,26 +75,30 @@ TodoList/
 │       │   └── readme-auto-sync-DONE.md
 │       └── feature
 │           ├── due-date-input-validation-DONE.md
-│           └── enhance-todo-features-IN_PROGRESS.md
-├── Models                                             # 数据模型层：任务模型 + 优先级枚举 + 标题/截止日期校验助手。
+│           ├── enhance-todo-features-IN_PROGRESS.md
+│           └── folders-add-DONE.md                    # 文件夹收纳功能 SPEC：三视图边栏、归属下拉、新建/重命名/删除确认、联删与旧库迁移。
+├── Models                                             # 数据模型层：任务与文件夹模型、优先级枚举、标题/文件夹名/截止日期校验助手。
 │   ├── DueDate.cs                                     # 截止日期格式的"单一权威源"助手：定义全应用统一的日期格式常量与严格解析逻辑。
+│   ├── FolderName.cs                                  # 文件夹名称的"单一权威源"校验助手：Trim + 非空 + MaxLength。
+│   ├── MyFolder.cs                                    # 文件夹数据模型（纯数据，无业务逻辑）。
 │   ├── TaskPriority.cs                                # 任务优先级。低→高代表紧急/重要程度的递增。
 │   ├── TaskTitle.cs                                   # 任务标题的"单一权威源"校验助手：Trim + 非空 + MaxLength。
 │   └── TodoItem.cs                                    # 任务数据模型（纯数据，无业务逻辑）。
-├── Repositories                                       # 任务仓库：接口定义唯一边界，实现为应用内唯一权威数据源。
-│   ├── ITodoRepository.cs                             # 任务仓库接口：定义"任务数据"的唯一边界。
-│   └── TodoRepository.cs                              # 任务仓库实现：应用内唯一权威数据源。
+├── Repositories                                       # 任务与文件夹仓库：接口定义唯一边界，实现为应用内唯一权威数据源。
+│   ├── ITodoRepository.cs                             # 任务与文件夹仓库接口：定义"任务数据"的唯一边界。
+│   └── TodoRepository.cs                              # 任务与文件夹仓库实现：应用内唯一权威数据源。
 ├── scripts
 │   ├── check-commit-msg.js
 │   └── publish-all.ps1
 ├── Tests                                              # 测试项目：TodoRepository 集成测试。
 │   └── TodoList.Tests                                 # TodoRepository 集成测试。
 │       ├── TodoList.Tests.csproj
-│       └── TodoRepositoryTests.cs                     # 使用临时 SQLite，不触碰 data/todo.db。
-├── ViewModels                                         # MVVM 视图模型层：主窗口 VM、行 VM、命令与基类。
-│   ├── MainWindowViewModel.cs                         # 主窗口 ViewModel：消费仓库只读投影，不持有权威数据。
+│       └── TodoRepositoryTests.cs                     # 任务与文件夹用例，使用临时 SQLite，不触碰 data/todo.db。
+├── ViewModels                                         # MVVM 视图模型层：主窗口 VM、边栏项 VM、行 VM、命令与基类。
+│   ├── MainWindowViewModel.cs                         # 主窗口 ViewModel：消费仓库只读投影，负责三视图过滤/搜索/统计与到期提醒。
 │   ├── RelayCommand.cs                                # 极简 ICommand 实现，避免引入额外 MVVM 框架。
-│   ├── TodoItemViewModel.cs                           # 行 ViewModel：承载行内编辑状态与优先级/截止日期派生展示。
+│   ├── SidebarItemViewModel.cs                        # 边栏项 ViewModel：全部/文件夹/未归类三态视图、文件夹原地重命名与条目数。
+│   ├── TodoItemViewModel.cs                           # 行 ViewModel：承载行内编辑状态与优先级/截止日期/文件夹归属派生展示。
 │   └── ViewModelBase.cs                               # MVVM 基类，提供属性变更通知能力。
 ├── .gitignore
 ├── AGENTS.md
@@ -103,7 +109,7 @@ TodoList/
 ├── CLAUDE.md
 ├── config.json
 ├── MainWindow.axaml
-├── MainWindow.axaml.cs                                # 主窗口代码后置：到期通知、回车快速添加、行内编辑与截止日期的键盘/失焦事件。
+├── MainWindow.axaml.cs                                # 主窗口代码后置：到期通知、回车快速添加、行内编辑/截止日期/文件夹交互键盘与失焦事件、删除文件夹确认框。
 ├── Program.cs                                         # Avalonia 程序入口：构建 App 并启动桌面生命周期。
 ├── README.md
 ├── TodoList.csproj
@@ -136,18 +142,6 @@ SQLite（权威源） ←─ DatabaseService ←─ TodoRepository（只读投�
 实际数据库文件位于项目根 `/被定义的目录/文件名`（默认 `data/todo.db`）。`App.axaml.cs` 的 `ResolveProjectRoot()` 从输出目录向上定位项目根；发布环境无 `.csproj`/`.slnx` 标记时回退到程序输出目录。
 
 `data/` 已被 `.gitignore` 排除，数据库不会进入版本库（`config.json` 本身会提交）。
-
-### 版本与提交信息
-
-<!-- AUTO-README:START -->
-| 项目 | 值 |
-| --- | --- |
-| 最近提交 | `3ef6f25` — feat: 添加框支持实时过滤下方任务列表 |
-| 提交时间 | 2026-09-13 |
-| 数据库文件 | `data/todo.db` |
-<!-- AUTO-README:END -->
-
-> 注：`<!-- AUTO-README:START/END -->` 之间的版本信息为**人工维护**，提交时不再有程序自动改写。
 
 ## 📁 文档目录
 
