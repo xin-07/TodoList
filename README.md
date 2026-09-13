@@ -5,6 +5,7 @@
 ## ✨ 功能
 
 - 任务管理：输入 + 添加、勾选完成、删除
+- 实时过滤：在顶部输入框键入关键词，下方任务列表即时按标题过滤（忽略大小写），清空即恢复全量
 - 任务标题原地编辑（双击 / F2 进入编辑，Enter 提交、Esc 取消、失焦保存）
 - 优先级：无 / 低 / 中 / 高 四档，行首高亮条，列表按优先级从高到低排序
 - 截止日期：严格 `yyyy-MM-dd` 格式校验，输入框占位提示当天日期，到期展示「今天到期 / 已过期」
@@ -31,10 +32,16 @@ dotnet run
 
 > 说明：启动操作请由你自己执行（本项目约定 AI 不负责启动程序）。
 
-打包（可选）：
+打包（可选，跨平台单文件发布）：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/publish-all.ps1
+```
+
+默认以 Release + 自包含发布 `win-x64` / `linux-x64` / `osx-arm64` 三个平台到 `dist/<rid>/`（单文件配置见 `TodoList.csproj`，仅在指定 `RuntimeIdentifier` 时生效）。单平台等效命令：
 
 ```bash
-dotnet publish -c Release
+dotnet publish -c Release -r win-x64 --self-contained true -o dist/win-x64
 ```
 
 ## 🖥️ 项目结构
@@ -59,18 +66,20 @@ TodoList/
 │       ├── TodoList.exe
 │       └── TodoList.pdb
 ├── docs
+│   ├── rule
+│   │   └── article-05-post-change-verification.md      # 宪法 Article 5 细则：变更后验证（编译 + 单元测试）
 │   └── spec
 │       ├── docs
 │       │   └── readme-auto-sync-DONE.md
 │       └── feature
 │           ├── due-date-input-validation-DONE.md
 │           └── enhance-todo-features-IN_PROGRESS.md
-├── Models                                             # 截止日期格式的"单一权威源"助手：定义全应用统一的日期格式常量与严格解析逻辑。
+├── Models                                             # 数据模型层：任务模型 + 优先级枚举 + 标题/截止日期校验助手。
 │   ├── DueDate.cs                                     # 截止日期格式的"单一权威源"助手：定义全应用统一的日期格式常量与严格解析逻辑。
 │   ├── TaskPriority.cs                                # 任务优先级。低→高代表紧急/重要程度的递增。
 │   ├── TaskTitle.cs                                   # 任务标题的"单一权威源"校验助手：Trim + 非空 + MaxLength。
 │   └── TodoItem.cs                                    # 任务数据模型（纯数据，无业务逻辑）。
-├── Repositories                                       # 任务仓库接口：定义"任务数据"的唯一边界。
+├── Repositories                                       # 任务仓库：接口定义唯一边界，实现为应用内唯一权威数据源。
 │   ├── ITodoRepository.cs                             # 任务仓库接口：定义"任务数据"的唯一边界。
 │   └── TodoRepository.cs                              # 任务仓库实现：应用内唯一权威数据源。
 ├── scripts
@@ -94,7 +103,7 @@ TodoList/
 ├── CLAUDE.md
 ├── config.json
 ├── MainWindow.axaml
-├── MainWindow.axaml.cs                                # 主窗口代码后置：到期通知弹窗与回车快速添加。
+├── MainWindow.axaml.cs                                # 主窗口代码后置：到期通知、回车快速添加、行内编辑与截止日期的键盘/失焦事件。
 ├── Program.cs                                         # Avalonia 程序入口：构建 App 并启动桌面生命周期。
 ├── README.md
 ├── TodoList.csproj
@@ -124,7 +133,7 @@ SQLite（权威源） ←─ DatabaseService ←─ TodoRepository（只读投�
 
 数据目录与数据库文件名在 `config.json` **单一权威定义**一次（`data.directory`、`data.dbFileName`），`App.axaml.cs` 读取它，不在代码里重复硬编码。
 
-实际数据库文件位于项目根 `/被定义的目录/文件名`（默认 `data/todo.db`）。`App.axaml.cs` 的 `ResolveProjectRoot()` 从输出目录向上定位项目根；发布环境无 `.csproj` 标记时回退到程序输出目录。
+实际数据库文件位于项目根 `/被定义的目录/文件名`（默认 `data/todo.db`）。`App.axaml.cs` 的 `ResolveProjectRoot()` 从输出目录向上定位项目根；发布环境无 `.csproj`/`.slnx` 标记时回退到程序输出目录。
 
 `data/` 已被 `.gitignore` 排除，数据库不会进入版本库（`config.json` 本身会提交）。
 
@@ -133,8 +142,8 @@ SQLite（权威源） ←─ DatabaseService ←─ TodoRepository（只读投�
 <!-- AUTO-README:START -->
 | 项目 | 值 |
 | --- | --- |
-| 最近提交 | `1bdcee1` — feat: 跨平台单文件发布（publish-all 脚本 + PublishSingleFile 配置） |
-| 提交时间 | 2026-09-12 |
+| 最近提交 | `3ef6f25` — feat: 添加框支持实时过滤下方任务列表 |
+| 提交时间 | 2026-09-13 |
 | 数据库文件 | `data/todo.db` |
 <!-- AUTO-README:END -->
 
@@ -144,7 +153,6 @@ SQLite（权威源） ←─ DatabaseService ←─ TodoRepository（只读投�
 
 | 目录 | 用途 |
 | --- | --- |
-| `docs/AI-workflow/` | AI 协作工作流相关文档 |
 | `docs/rule/` | 存储 `AI_CONSTITUTION.md` 中每一条的详细规则 |
 | `docs/spec/<问题领域>/` | 按问题领域分类的 SPEC（feature / docs / test ...），每个问题只允许一个文档 |
 
