@@ -59,7 +59,7 @@
                     Margin="8,0,0,0"
                     Content="添加"
                     Command="{Binding AddTaskCommand}" />
-            <TextBox PlaceholderText="输入任务，回车添加..."
+            <TextBox PlaceholderText="输入关键字搜索已有任务，或输入新任务，回车添加..."
                      Text="{Binding NewTaskTitle, Mode=TwoWay}"
                      KeyDown="OnNewTaskKeyDown" />
         </DockPanel>
