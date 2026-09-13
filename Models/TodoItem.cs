@@ -42,4 +42,7 @@ public class TodoItem : ViewModelBase
         get => _dueDate;
         set => SetProperty(ref _dueDate, value);
     }
+
+    /// <summary>所属文件夹 Id（null = 未归类）。单归属；仅允许 Repository 写入。</summary>
+    public string? FolderId { get; set; }
 }

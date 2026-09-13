@@ -48,7 +48,12 @@ public class DatabaseService
                     is_completed INTEGER NOT NULL DEFAULT 0,
                     created_at  TEXT NOT NULL,
                     priority    TEXT NOT NULL DEFAULT 'None',
-                    due_date    TEXT NULL
+                    due_date    TEXT NULL,
+                    folder_id   TEXT NULL
+                );
+                CREATE TABLE IF NOT EXISTS folder (
+                    id          TEXT PRIMARY KEY,
+                    name        TEXT NOT NULL
                 );
                 """;
             cmd.ExecuteNonQuery();
@@ -57,6 +62,7 @@ public class DatabaseService
         // 迁移：对已存在的旧库，若缺少新增列则用 ALTER TABLE 补齐，保证老库升级不报错。
         EnsureColumn(conn, "priority", "TEXT NOT NULL DEFAULT 'None'");
         EnsureColumn(conn, "due_date", "TEXT NULL");
+        EnsureColumn(conn, "folder_id", "TEXT NULL");
     }
 
     /// <summary>若指定列不存在则 ALTER TABLE 追加。幂等，可安全重复执行。</summary>
@@ -90,7 +96,7 @@ public class DatabaseService
         var result = new List<TodoItem>();
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT id, title, is_completed, created_at, priority, due_date FROM tasks;";
+        cmd.CommandText = "SELECT id, title, is_completed, created_at, priority, due_date, folder_id FROM tasks;";
         using var reader = cmd.ExecuteReader();
         while (reader.Read())
         {
@@ -110,6 +116,7 @@ public class DatabaseService
                 CreatedAt = DateTime.Parse(reader.GetString(3)),
                 Priority = priority,
                 DueDate = reader.IsDBNull(5) ? null : DateTime.Parse(reader.GetString(5)),
+                FolderId = reader.IsDBNull(6) ? null : reader.GetString(6),
             });
         }
         return result;
@@ -179,6 +186,97 @@ public class DatabaseService
             : "UPDATE tasks SET due_date = $due_date WHERE id = $id;";
         if (date is not null)
             cmd.Parameters.AddWithValue("$due_date", date.Value.ToString("o"));
+        cmd.Parameters.AddWithValue("$id", id);
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>读取全部文件夹（按 Id 排序，保持稳定顺序）。</summary>
+    public IReadOnlyList<MyFolder> LoadFolders()
+    {
+        var result = new List<MyFolder>();
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT id, name FROM folder ORDER BY id;";
+        using var reader = cmd.ExecuteReader();
+        while (reader.Read())
+        {
+            result.Add(new MyFolder
+            {
+                Id = reader.GetString(0),
+                Name = reader.GetString(1),
+            });
+        }
+        return result;
+    }
+
+    public void InsertFolder(string id, string name)
+    {
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "INSERT INTO folder (id, name) VALUES ($id, $name);";
+        cmd.Parameters.AddWithValue("$id", id);
+        cmd.Parameters.AddWithValue("$name", name);
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>重命名文件夹。名称超出上限时按 MaxLength 截断，上限见 FolderName.MaxLength。</summary>
+    public void RenameFolder(string id, string name)
+    {
+        var normalized = (name ?? "").Trim();
+        if (normalized.Length > FolderName.MaxLength)
+            normalized = normalized[..FolderName.MaxLength];
+
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE folder SET name = $name WHERE id = $id;";
+        cmd.Parameters.AddWithValue("$name", normalized);
+        cmd.Parameters.AddWithValue("$id", id);
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// 删除文件夹，并连同其下所有条目一并删除。
+    /// 返回被一并删除的条目数（供确认提示使用）。
+    /// </summary>
+    public int DeleteFolder(string id)
+    {
+        using var conn = OpenConnection();
+        using var tx = conn.BeginTransaction();
+
+        using (var count = conn.CreateCommand())
+        {
+            count.Transaction = tx;
+            count.CommandText = "SELECT COUNT(*) FROM tasks WHERE folder_id = $id;";
+            count.Parameters.AddWithValue("$id", id);
+            var deleted = Convert.ToInt32(count.ExecuteScalar());
+
+            using var delTasks = conn.CreateCommand();
+            delTasks.Transaction = tx;
+            delTasks.CommandText = "DELETE FROM tasks WHERE folder_id = $id;";
+            delTasks.Parameters.AddWithValue("$id", id);
+            delTasks.ExecuteNonQuery();
+
+            using var delFolder = conn.CreateCommand();
+            delFolder.Transaction = tx;
+            delFolder.CommandText = "DELETE FROM folder WHERE id = $id;";
+            delFolder.Parameters.AddWithValue("$id", id);
+            delFolder.ExecuteNonQuery();
+
+            tx.Commit();
+            return deleted;
+        }
+    }
+
+    /// <summary>设置/清除条目归属文件夹。folderId 传 null 表示移到未归类。</summary>
+    public void UpdateTaskFolder(string id, string? folderId)
+    {
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = folderId is null
+            ? "UPDATE tasks SET folder_id = NULL WHERE id = $id;"
+            : "UPDATE tasks SET folder_id = $folder_id WHERE id = $id;";
+        if (folderId is not null)
+            cmd.Parameters.AddWithValue("$folder_id", folderId);
         cmd.Parameters.AddWithValue("$id", id);
         cmd.ExecuteNonQuery();
     }

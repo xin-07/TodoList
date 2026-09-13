@@ -20,6 +20,8 @@ public class TodoRepository : ITodoRepository
     private readonly DatabaseService _db;
     private readonly ObservableCollection<TodoItem> _items;
     private readonly ReadOnlyObservableCollection<TodoItem> _itemsView;
+    private readonly ObservableCollection<MyFolder> _folders;
+    private readonly ReadOnlyObservableCollection<MyFolder> _foldersView;
 
     public TodoRepository(DatabaseService db)
     {
@@ -27,9 +29,13 @@ public class TodoRepository : ITodoRepository
         // 启动时从权威源(SQLite)读取全量，构建投影。
         _items = new ObservableCollection<TodoItem>(_db.LoadAll().OrderBy(t => t.CreatedAt));
         _itemsView = new ReadOnlyObservableCollection<TodoItem>(_items);
+        _folders = new ObservableCollection<MyFolder>(_db.LoadFolders());
+        _foldersView = new ReadOnlyObservableCollection<MyFolder>(_folders);
     }
 
     public ReadOnlyObservableCollection<TodoItem> Items => _itemsView;
+
+    public ReadOnlyObservableCollection<MyFolder> Folders => _foldersView;
 
     public event Action? Changed;
 
@@ -122,6 +128,74 @@ public class TodoRepository : ITodoRepository
         // 先写权威源。
         _db.Delete(id);
         _items.Remove(item);
+
+        Changed?.Invoke();
+    }
+
+    public bool AddFolder(string name)
+    {
+        var error = FolderName.Validate(name);
+        if (error is not null)
+            return false;
+
+        var folder = new MyFolder
+        {
+            Id = Guid.NewGuid().ToString(),
+            Name = name.Trim(),
+        };
+
+        // 先写权威源，再同步投影。
+        _db.InsertFolder(folder.Id, folder.Name);
+        _folders.Add(folder);
+
+        Changed?.Invoke();
+        return true;
+    }
+
+    public bool RenameFolder(string id, string name)
+    {
+        var error = FolderName.Validate(name);
+        if (error is not null)
+            return false;
+
+        var folder = _folders.FirstOrDefault(f => f.Id == id);
+        if (folder is null)
+            return false;
+
+        // 先写权威源（DatabaseService 内部按 MaxLength 截断），再同步投影。
+        _db.RenameFolder(id, name.Trim());
+        folder.Name = name.Trim();
+
+        Changed?.Invoke();
+        return true;
+    }
+
+    public int DeleteFolder(string id)
+    {
+        // 先写权威源（连同其下条目一并删除），返回被删条目数。
+        var deletedCount = _db.DeleteFolder(id);
+
+        // 同步投影：先移除文件夹内条目，再移除文件夹本身。
+        var removed = _items.Where(t => t.FolderId == id).ToList();
+        foreach (var item in removed)
+            _items.Remove(item);
+        var folder = _folders.FirstOrDefault(f => f.Id == id);
+        if (folder is not null)
+            _folders.Remove(folder);
+
+        Changed?.Invoke();
+        return deletedCount;
+    }
+
+    public void SetFolder(string id, string? folderId)
+    {
+        // 先写权威源。
+        _db.UpdateTaskFolder(id, folderId);
+
+        // 同步投影中的同一对象引用。
+        var item = _items.FirstOrDefault(t => t.Id == id);
+        if (item is not null)
+            item.FolderId = folderId;
 
         Changed?.Invoke();
     }

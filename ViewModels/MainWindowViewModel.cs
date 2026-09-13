@@ -23,24 +23,51 @@ public sealed class DueAlarmEventArgs : EventArgs
     public string Title { get; }
 }
 
+/// <summary>删除文件夹确认事件参数：携带待删文件夹及其内置条目数。</summary>
+public sealed class DeleteFolderConfirmEventArgs : EventArgs
+{
+    public DeleteFolderConfirmEventArgs(SidebarItemViewModel item)
+    {
+        Item = item;
+    }
+
+    public SidebarItemViewModel Item { get; }
+}
+
 /// <summary>
 /// 主窗口 ViewModel。
 ///
 /// 它不含权威数据，只消费仓库暴露的只读投影：
 ///  - 增删改一律调用仓库；
-///  - 单个任务完成状态由 UI 勾选触发 SetCompleted 写入仓库；
-///  - 标题/优先级/截止日期由行 ViewModel 调用仓库写库。
-///  - 展示列表 <see cref="DisplayItems"/> 是按优先级从高到低排序后的只读投影。
+///  - 展示列表 <see cref="DisplayItems"/> 是按当前视图(全部/文件夹/未归类)过滤、
+///    再按优先级从高到低排序后的只读投影，并叠加标题搜索。
 /// </summary>
 public class MainWindowViewModel : ViewModelBase
 {
+    /// <summary>边栏三种视图的稳定 Key。</summary>
+    public const string KeyAll = "all";
+    public const string KeyUncategorized = "none";
+
     private readonly ITodoRepository _repo;
     private readonly Dictionary<string, TodoItemViewModel> _vmById = new();
+    private readonly Dictionary<string, SidebarItemViewModel> _folderSidebarById = new();
     private readonly ObservableCollection<TodoItemViewModel> _display = new();
     private readonly ObservableCollection<TodoItemViewModel> _filterDisplay = new();
     private readonly ReadOnlyObservableCollection<TodoItemViewModel> _filterView;
+
+    private readonly ObservableCollection<SidebarItemViewModel> _sidebarItems = new();
+    private readonly ReadOnlyObservableCollection<SidebarItemViewModel> _sidebarView;
+
+    private readonly ObservableCollection<SidebarItemViewModel> _folderChoices = new();
+    private readonly ReadOnlyObservableCollection<SidebarItemViewModel> _folderChoicesView;
+
     private readonly HashSet<string> _alarmedIds = new();
     private readonly DispatcherTimer _alarmTimer;
+
+    private string _newFolderName = "";
+    private string _addFolderError = "";
+    private bool _isNewFolderOpen;
+    private SidebarItemViewModel? _selectedSidebar;
 
     private string _newTaskTitle = "";
     private string _addError = "";
@@ -51,7 +78,10 @@ public class MainWindowViewModel : ViewModelBase
     {
         _repo = repo;
         _filterView = new ReadOnlyObservableCollection<TodoItemViewModel>(_filterDisplay);
+        _sidebarView = new ReadOnlyObservableCollection<SidebarItemViewModel>(_sidebarItems);
+        _folderChoicesView = new ReadOnlyObservableCollection<SidebarItemViewModel>(_folderChoices);
 
+        RebuildSidebar();
         RefreshStats();
         _repo.Changed += OnRepoChanged;
 
@@ -69,6 +99,13 @@ public class MainWindowViewModel : ViewModelBase
 
         AddTaskCommand = new RelayCommand(_ => AddTask());
         RemoveTaskCommand = new RelayCommand(p => RemoveTask(p as TodoItemViewModel));
+        AddFolderCommand = new RelayCommand(_ => AddFolder());
+        ToggleNewFolderCommand = new RelayCommand(_ => IsNewFolderOpen = !IsNewFolderOpen);
+        DeleteFolderCommand = new RelayCommand(p =>
+        {
+            if (p is SidebarItemViewModel item)
+                RequestDeleteFolder(item);
+        });
 
         // 到期提醒：轻量定时器周期扫描，早于/等于当前时间且未完成的未提醒任务触发系统通知。
         _alarmTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
@@ -79,11 +116,20 @@ public class MainWindowViewModel : ViewModelBase
     /// <summary>未完成任务到期提醒事件（由 View 层绑定系统通知）。</summary>
     public event EventHandler<DueAlarmEventArgs>? DueAlarm;
 
+    /// <summary>删除文件夹确认请求事件（由 View 层弹出确认框后回调）。</summary>
+    public event EventHandler<DeleteFolderConfirmEventArgs>? DeleteFolderRequested;
+
     /// <summary>任务列表（只读投影，原样）。</summary>
     public ReadOnlyObservableCollection<TodoItem> Items => _repo.Items;
 
-    /// <summary>排序后的展示列表：按优先级高→低展示，并按输入框内容过滤。</summary>
+    /// <summary>排序并过滤后的展示列表：按当前视图过滤、优先级高→低排序，并叠加标题搜索。</summary>
     public ReadOnlyObservableCollection<TodoItemViewModel> DisplayItems => _filterView;
+
+    /// <summary>左侧边栏项：全部任务 → 各文件夹 → 未归类。</summary>
+    public ReadOnlyObservableCollection<SidebarItemViewModel> SidebarItems => _sidebarView;
+
+    /// <summary>任务行"移到文件夹"下拉选项：未归类 + 全部文件夹。</summary>
+    public ReadOnlyObservableCollection<SidebarItemViewModel> FolderChoices => _folderChoicesView;
 
     public string NewTaskTitle
     {
@@ -102,6 +148,43 @@ public class MainWindowViewModel : ViewModelBase
         set => SetProperty(ref _addError, value);
     }
 
+    public string NewFolderName
+    {
+        get => _newFolderName;
+        set
+        {
+            if (SetProperty(ref _newFolderName, value))
+                AddFolderError = "";
+        }
+    }
+
+    public string AddFolderError
+    {
+        get => _addFolderError;
+        set => SetProperty(ref _addFolderError, value);
+    }
+
+    /// <summary>新建文件夹输入区是否展开（由顶栏文件夹按钮切换）。</summary>
+    public bool IsNewFolderOpen
+    {
+        get => _isNewFolderOpen;
+        set => SetProperty(ref _isNewFolderOpen, value);
+    }
+
+    /// <summary>当前选中的边栏视图（双向绑定到 ListBox.SelectedItem）。</summary>
+    public SidebarItemViewModel? SelectedSidebar
+    {
+        get => _selectedSidebar;
+        set
+        {
+            if (ReferenceEquals(_selectedSidebar, value))
+                return;
+            _selectedSidebar = value;
+            OnPropertyChanged();
+            ApplyFilter();
+        }
+    }
+
     public int TotalCount => _totalCount;
     public int CompletedCount => _completedCount;
 
@@ -109,6 +192,11 @@ public class MainWindowViewModel : ViewModelBase
 
     public ICommand AddTaskCommand { get; }
     public ICommand RemoveTaskCommand { get; }
+    public ICommand AddFolderCommand { get; }
+    public ICommand ToggleNewFolderCommand { get; }
+
+    /// <summary>删除文件夹命令：向 View 层发起确认请求（不直接删除）。</summary>
+    public ICommand DeleteFolderCommand { get; }
 
     private void AddTask()
     {
@@ -124,6 +212,39 @@ public class MainWindowViewModel : ViewModelBase
         AddError = "";
     }
 
+    private void AddFolder()
+    {
+        var error = FolderName.Validate(NewFolderName);
+        if (error is not null)
+        {
+            AddFolderError = error;
+            return;
+        }
+
+        _repo.AddFolder(NewFolderName!.Trim());
+        NewFolderName = "";
+        AddFolderError = "";
+        // 创建成功后收起命名输入区（点击其它区域/确认后均退出编辑）。
+        IsNewFolderOpen = false;
+    }
+
+    /// <summary>
+    /// 用户对某文件夹确认删除（View 层确认框回调）。
+    /// 删除文件夹并连同其下条目一并删除；若当前正选中该文件夹则回退到"全部任务"。
+    /// </summary>
+    public void ConfirmDeleteFolder(SidebarItemViewModel item)
+    {
+        var wasSelected = ReferenceEquals(SelectedSidebar, item);
+        _repo.DeleteFolder(item.Key);
+        // 被删文件夹的边栏项/下拉项由 OnRepoChanged 重建。
+        if (wasSelected)
+            SelectedSidebar = _sidebarItems.FirstOrDefault(i => i.Key == KeyAll);
+    }
+
+    /// <summary>请求删除某文件夹（由 View 层调用以触发确认框）。</summary>
+    public void RequestDeleteFolder(SidebarItemViewModel item)
+        => DeleteFolderRequested?.Invoke(this, new DeleteFolderConfirmEventArgs(item));
+
     private void RemoveTask(TodoItemViewModel? vm)
     {
         if (vm is null)
@@ -133,9 +254,44 @@ public class MainWindowViewModel : ViewModelBase
 
     private TodoItemViewModel CreateVm(TodoItem item)
     {
-        var vm = new TodoItemViewModel(_repo, item);
+        var vm = new TodoItemViewModel(_repo, item, _folderChoicesView);
         _vmById[item.Id] = vm;
         return vm;
+    }
+
+    /// <summary>重建边栏与下拉选项，并刷新各文件夹内置条目数。</summary>
+    private void RebuildSidebar()
+    {
+        // 下拉选项：未归类 → 各文件夹（行级归属选择）。
+        _folderChoices.Clear();
+        _folderChoices.Add(new SidebarItemViewModel(_repo, SidebarKind.Uncategorized));
+
+        _sidebarItems.Clear();
+        _sidebarItems.Add(new SidebarItemViewModel(_repo, SidebarKind.All));
+        _folderSidebarById.Clear();
+        var total = _repo.Items.Count;
+        foreach (var f in _repo.Folders)
+        {
+            var count = total == 0 ? 0 : _repo.Items.Count(t => t.FolderId == f.Id);
+            var item = new SidebarItemViewModel(_repo, SidebarKind.Folder, f);
+            item.ItemCount = count;
+            _sidebarItems.Add(item);
+            _folderSidebarById[f.Id] = item;
+            _folderChoices.Add(item);
+        }
+        var unassigned = total == 0 ? 0 : _repo.Items.Count(t => t.FolderId is null);
+        _sidebarItems.Add(new SidebarItemViewModel(_repo, SidebarKind.Uncategorized));
+        _sidebarItems[^1].ItemCount = unassigned;
+
+        // 刷新"全部任务"计数。
+        _sidebarItems[0].ItemCount = total;
+
+        // 若当前选中项已失效（文件夹被删）则回退，否则保持。
+        var preserve = _selectedSidebar?.Key;
+        if (preserve is not null)
+            SelectedSidebar = _sidebarItems.FirstOrDefault(i => i.Key == preserve);
+        if (SelectedSidebar is null)
+            SelectedSidebar = _sidebarItems.FirstOrDefault(i => i.Key == KeyAll);
     }
 
     private void OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
@@ -173,6 +329,7 @@ public class MainWindowViewModel : ViewModelBase
     {
         RefreshStats();
         CleanAlarmedIds();
+        RebuildSidebar();
         Reorder();
         ApplyFilter();
     }
@@ -210,19 +367,30 @@ public class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 依据输入框内容重建过滤后的展示列表：
-    /// 标题包含输入内容（忽略大小写）的任务保留；空白输入则展示全部。
+    /// 重建过滤后的展示列表：叠加"标题搜索 + 当前视图（全部/文件夹/未归类）"两层过滤。
+    /// 空白搜索与"全部"视图时不额外过滤。
     /// </summary>
     private void ApplyFilter()
     {
         var query = _newTaskTitle.Trim();
+        var activeKey = SelectedSidebar?.Key;
+
         _filterDisplay.Clear();
         foreach (var vm in _display)
         {
-            if (query.Length == 0 || vm.Title.Contains(query, StringComparison.OrdinalIgnoreCase))
-                _filterDisplay.Add(vm);
+            if (query.Length != 0
+                && !vm.Title.Contains(query, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            if (activeKey is not null && activeKey != KeyAll && !IsInView(vm.Item, activeKey))
+                continue;
+
+            _filterDisplay.Add(vm);
         }
     }
+
+    private static bool IsInView(TodoItem item, string key)
+        => key == KeyUncategorized ? item.FolderId is null : item.FolderId == key;
 
     private void ScanDueAlarms()
     {
@@ -257,10 +425,35 @@ public class MainWindowViewModel : ViewModelBase
 
     private void OnItemPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
     {
-        if (e.PropertyName != nameof(TodoItem.IsCompleted) || sender is not TodoItem t)
+        if (sender is not TodoItem t)
             return;
-        // 投影完成状态变化时，写回权威源(仓库→SQLite)。
-        _repo.SetCompleted(t.Id, t.IsCompleted);
+
+        if (e.PropertyName == nameof(TodoItem.IsCompleted))
+        {
+            // 投影完成状态变化时，写回权威源(仓库→SQLite)。
+            _repo.SetCompleted(t.Id, t.IsCompleted);
+        }
+        else if (e.PropertyName == nameof(TodoItem.FolderId))
+        {
+            // 条目归属变化：刷新边栏各文件夹内置条目数。
+            RefreshSidebarCounts();
+        }
+    }
+
+    private void RefreshSidebarCounts()
+    {
+        var total = _repo.Items.Count;
+        if (_sidebarItems.Count == 0)
+            return;
+        _sidebarItems[0].ItemCount = total;
+        foreach (var f in _repo.Folders)
+        {
+            if (_folderSidebarById.TryGetValue(f.Id, out var item))
+                item.ItemCount = total == 0 ? 0 : _repo.Items.Count(t => t.FolderId == f.Id);
+        }
+        foreach (var item in _sidebarItems)
+            if (item.Kind == SidebarKind.Uncategorized)
+                item.ItemCount = total == 0 ? 0 : _repo.Items.Count(t => t.FolderId is null);
     }
 
     private void RefreshStats()

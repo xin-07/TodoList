@@ -5,12 +5,12 @@
         xmlns:vm="using:TodoList.ViewModels"
         xmlns:models="using:TodoList.Models"
         xmlns:c="using:Avalonia.Data.Converters"
-        mc:Ignorable="d" d:DesignWidth="640" d:DesignHeight="420"
+        mc:Ignorable="d" d:DesignWidth="760" d:DesignHeight="440"
         x:Class="TodoList.MainWindow"
         x:Name="Root"
         x:DataType="vm:MainWindowViewModel"
         Title="TodoList"
-        Width="640" Height="420"
+        Width="760" Height="440"
         WindowStartupLocation="CenterScreen">
 
     <Window.Styles>
@@ -51,152 +51,261 @@
         </Style>
     </Window.Styles>
 
-    <DockPanel Margin="16">
+    <Grid Margin="16" PointerPressed="OnRootPointerPressed">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="190" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
 
-        <!-- 顶部：输入 + 添加 -->
-        <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
-            <Button DockPanel.Dock="Right"
-                    Margin="8,0,0,0"
-                    Content="添加"
-                    Command="{Binding AddTaskCommand}" />
-            <TextBox PlaceholderText="输入关键字搜索已有任务，或输入新任务，回车添加..."
-                     Text="{Binding NewTaskTitle, Mode=TwoWay}"
-                     KeyDown="OnNewTaskKeyDown" />
+        <!-- 左侧：文件夹边栏 -->
+        <DockPanel Grid.Column="0" Margin="0,0,16,0">
+            <TextBlock DockPanel.Dock="Top"
+                       Text="文件夹"
+                       Classes="header"
+                       Margin="0,0,0,6" />
+
+            <!-- 文件夹列表：与"新建文件夹"入口作为一个滚动整体，入口紧跟未归类项下方 -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="6">
+                    <ListBox ItemsSource="{Binding SidebarItems}"
+                             SelectedItem="{Binding SelectedSidebar}"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="vm:SidebarItemViewModel">
+                                <Grid>
+                                    <!-- 重命名态 -->
+                                    <StackPanel Orientation="Horizontal" Spacing="6"
+                                                IsVisible="{Binding IsRenaming}">
+                                        <TextBox Text="{Binding EditText, Mode=TwoWay}"
+                                                 KeyDown="OnFolderRenameKeyDown" />
+                                        <Button Content="✓" Foreground="Green" Background="Transparent"
+                                                Command="{Binding SaveRenameCommand}" />
+                                    </StackPanel>
+
+                                    <!-- 常规展示态 -->
+                                    <Grid ColumnDefinitions="*,Auto,Auto"
+                                      IsVisible="{Binding IsNotRenaming}">
+                                        <TextBlock Grid.Column="0"
+                                                   VerticalAlignment="Center"
+                                                   Text="{Binding Name}"
+                                                   Margin="0,0,6,0"
+                                                   ToolTip.Tip="{Binding Name}"
+                                                   Background="Transparent"
+                                                   Focusable="True"
+                                                   DoubleTapped="OnFolderNameDoubleTapped" />
+                                        <TextBlock Grid.Column="1"
+                                                   VerticalAlignment="Center"
+                                                   Foreground="Gray"
+                                                   Text="{Binding ItemCount}"
+                                                   Margin="0,0,6,0" />
+                                        <!-- 文件夹专属：删除 -->
+                                        <Button Grid.Column="2"
+                                                Background="Transparent"
+                                                Padding="4,0"
+                                                ToolTip.Tip="删除文件夹"
+                                                IsVisible="{Binding IsFolder}"
+                                                Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DeleteFolderCommand}"
+                                                CommandParameter="{Binding}">
+                                            <TextBlock Text="🗑"
+                                                       Foreground="Red"
+                                                       FontSize="12"
+                                                       VerticalAlignment="Center" />
+                                        </Button>
+                                    </Grid>
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
+
+                    <!-- 新建文件夹：命名输入（点击下方按钮后展开） -->
+                    <DockPanel x:Name="NewFolderInput" IsVisible="{Binding IsNewFolderOpen}">
+                        <Button DockPanel.Dock="Right"
+                                Margin="6,0,0,0"
+                                Content="确认"
+                                Command="{Binding AddFolderCommand}" />
+                        <TextBox PlaceholderText="输入文件夹名称..."
+                                 Text="{Binding NewFolderName, Mode=TwoWay}"
+                                 KeyDown="OnNewFolderKeyDown" />
+                        <TextBlock DockPanel.Dock="Bottom"
+                                   Text="{Binding AddFolderError}"
+                                   Classes="error"
+                                   IsVisible="{Binding AddFolderError, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}"
+                                   Margin="0,2,0,0" />
+                    </DockPanel>
+
+                    <!-- 长方形新建按钮 -->
+                    <Button Content="＋ 新建文件夹"
+                            HorizontalAlignment="Stretch"
+                            Command="{Binding ToggleNewFolderCommand}" />
+                </StackPanel>
+            </ScrollViewer>
         </DockPanel>
 
-        <!-- 新增标题校验错误 -->
-        <TextBlock DockPanel.Dock="Top"
-                   Text="{Binding AddError}"
-                   Classes="error"
-                   IsVisible="{Binding AddError, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}"
-                   Margin="0,-6,0,8" />
+        <!-- 右侧：任务区 -->
+        <DockPanel Grid.Column="1">
 
-        <!-- 底部：统计 -->
-        <TextBlock DockPanel.Dock="Bottom"
-                   Margin="0,12,0,0"
-                   HorizontalAlignment="Center"
-                   Foreground="Gray"
-                   Text="{Binding StatsText}" />
+            <!-- 顶部：输入 + 添加 -->
+            <DockPanel DockPanel.Dock="Top" Margin="0,0,0,12">
+                <Button DockPanel.Dock="Right"
+                        Margin="8,0,0,0"
+                        Content="添加"
+                        Command="{Binding AddTaskCommand}" />
+                <TextBox PlaceholderText="输入关键字搜索已有任务，或输入新任务，回车添加..."
+                         Text="{Binding NewTaskTitle, Mode=TwoWay}"
+                         KeyDown="OnNewTaskKeyDown" />
+            </DockPanel>
 
-        <!-- 中部：列对齐的表头 -->
-        <Border DockPanel.Dock="Top"
-                Margin="0,0,0,6"
-                Padding="0,0,0,4"
-                BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="4,46,*,88,118,60">
-                <Border Grid.Column="0" />
-                <TextBlock Grid.Column="1" Text="完成"
-                           Classes="header" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                <TextBlock Grid.Column="2" Text="标题"
-                           Classes="header" VerticalAlignment="Center" />
-                <TextBlock Grid.Column="3" Text="优先级"
-                           Classes="header" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                <TextBlock Grid.Column="4" Text="截止日期"
-                           Classes="header" VerticalAlignment="Center" HorizontalAlignment="Center" />
-                <TextBlock Grid.Column="5" Text="操作"
-                           Classes="header" VerticalAlignment="Center" HorizontalAlignment="Center" />
-            </Grid>
-        </Border>
+            <!-- 新增标题校验错误 -->
+            <TextBlock DockPanel.Dock="Top"
+                       Text="{Binding AddError}"
+                       Classes="error"
+                       IsVisible="{Binding AddError, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}"
+                       Margin="0,-6,0,8" />
 
-        <!-- 中部：任务列表（网格化行，列与表头对齐；内容超出窗口高度时上下滚动） -->
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <ItemsControl ItemsSource="{Binding DisplayItems}">
-            <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="vm:TodoItemViewModel">
-                    <Grid ColumnDefinitions="4,46,*,88,118,60"
-                          Margin="0,3"
-                          Opacity="{Binding RowOpacity}">
-                        <!-- 优先级高亮条 -->
-                        <Border Grid.Column="0"
-                                Classes="priBar"
-                                Classes.high="{Binding IsHigh}"
-                                Classes.medium="{Binding IsMedium}"
-                                Classes.low="{Binding IsLow}"
-                                Classes.none="{Binding IsNone}" />
+            <!-- 底部：统计 -->
+            <TextBlock DockPanel.Dock="Bottom"
+                       Margin="0,12,0,0"
+                       HorizontalAlignment="Center"
+                       Foreground="Gray"
+                       Text="{Binding StatsText}" />
 
-                        <!-- 完成 -->
-                        <CheckBox Grid.Column="1"
-                                  IsChecked="{Binding IsCompleted, Mode=TwoWay}"
-                                  HorizontalAlignment="Center"
-                                  VerticalAlignment="Center" />
+            <!-- 中部：列对齐的表头 -->
+            <Border DockPanel.Dock="Top"
+                    Margin="0,0,0,6"
+                    Padding="0,0,0,4"
+                    BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                    BorderThickness="0,0,0,1">
+                <Grid ColumnDefinitions="4,40,*,96,100,110,64">
+                    <Border Grid.Column="0" />
+                    <TextBlock Grid.Column="1" Text="完成"
+                               Classes="header" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                    <TextBlock Grid.Column="2" Text="标题"
+                               Classes="header" VerticalAlignment="Center" />
+                    <TextBlock Grid.Column="3" Text="文件夹"
+                               Classes="header" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                    <TextBlock Grid.Column="4" Text="优先级"
+                               Classes="header" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                    <TextBlock Grid.Column="5" Text="截止日期"
+                               Classes="header" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                    <TextBlock Grid.Column="6" Text="操作"
+                               Classes="header" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                </Grid>
+            </Border>
 
-                        <!-- 标题：展示或原地编辑（右外边距形成与优先级列的间隔） -->
-                        <Grid Grid.Column="2" Margin="0,0,8,0" VerticalAlignment="Center">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <StackPanel Orientation="Horizontal" Spacing="8">
-                                <TextBlock Text="{Binding Title}"
-                                           Background="Transparent"
-                                           Focusable="True"
-                                           VerticalAlignment="Center"
-                                           IsVisible="{Binding IsNotEditing}"
-                                           DoubleTapped="OnTitleDoubleTapped"
-                                           KeyDown="OnTitleKeyDown" />
-                                <TextBox Text="{Binding EditText, Mode=TwoWay}"
+            <!-- 中部：任务列表（网格化行，列与表头对齐；内容超出窗口高度时上下滚动） -->
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding DisplayItems}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:TodoItemViewModel">
+                        <Grid ColumnDefinitions="4,40,*,96,100,110,64"
+                              Margin="0,3"
+                              Opacity="{Binding RowOpacity}">
+                            <!-- 优先级高亮条 -->
+                            <Border Grid.Column="0"
+                                    Classes="priBar"
+                                    Classes.high="{Binding IsHigh}"
+                                    Classes.medium="{Binding IsMedium}"
+                                    Classes.low="{Binding IsLow}"
+                                    Classes.none="{Binding IsNone}" />
+
+                            <!-- 完成 -->
+                            <CheckBox Grid.Column="1"
+                                      IsChecked="{Binding IsCompleted, Mode=TwoWay}"
+                                      HorizontalAlignment="Center"
+                                      VerticalAlignment="Center" />
+
+                            <!-- 标题：展示或原地编辑 -->
+                            <Grid Grid.Column="2" Margin="0,0,8,0" VerticalAlignment="Center">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding Title}"
+                                               Background="Transparent"
+                                               Focusable="True"
+                                               VerticalAlignment="Center"
+                                               IsVisible="{Binding IsNotEditing}"
+                                               DoubleTapped="OnTitleDoubleTapped"
+                                               KeyDown="OnTitleKeyDown" />
+                                    <TextBox Text="{Binding EditText, Mode=TwoWay}"
+                                             VerticalAlignment="Center"
+                                             IsVisible="{Binding IsEditing}"
+                                             KeyDown="OnEditKeyDown"
+                                             LostFocus="OnEditLostFocus" />
+                                </StackPanel>
+                                <TextBlock Grid.Row="1"
+                                           Text="{Binding EditError}"
+                                           Classes="error"
+                                           IsVisible="{Binding EditError, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
+                            </Grid>
+
+                            <!-- 文件夹：归属下拉 -->
+                            <ComboBox Grid.Column="3"
+                                      Margin="0,0,8,0"
+                                      HorizontalAlignment="Stretch"
+                                      VerticalAlignment="Center"
+                                      ItemsSource="{Binding FolderChoices}"
+                                      SelectedItem="{Binding SelectedFolder}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:SidebarItemViewModel">
+                                        <TextBlock Text="{Binding Name}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+
+                            <!-- 优先级 -->
+                            <ComboBox Grid.Column="4"
+                                      Margin="0,0,8,0"
+                                      HorizontalAlignment="Stretch"
+                                      VerticalAlignment="Center"
+                                      ItemsSource="{Binding PriorityOptions}"
+                                      SelectedItem="{Binding Priority}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:PriorityOption">
+                                        <TextBlock Text="{Binding Label}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+
+                            <!-- 截止日期：输入 + 到期文案/错误 -->
+                            <Grid Grid.Column="5" Margin="0,0,8,0" VerticalAlignment="Center">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <TextBox Text="{Binding DueDateText, Mode=TwoWay}"
+                                         PlaceholderText="{Binding DueDatePlaceholder}"
                                          VerticalAlignment="Center"
-                                         IsVisible="{Binding IsEditing}"
-                                         KeyDown="OnEditKeyDown"
-                                         LostFocus="OnEditLostFocus" />
-                            </StackPanel>
-                            <TextBlock Grid.Row="1"
-                                       Text="{Binding EditError}"
-                                       Classes="error"
-                                       IsVisible="{Binding EditError, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
+                                         KeyDown="OnDueDateKeyDown"
+                                         LostFocus="OnDueDateLostFocus" />
+                                <TextBlock Grid.Row="1"
+                                           Text="{Binding DueText}"
+                                           Classes="dueText"
+                                           Classes.overdue="{Binding IsOverdue}"
+                                           Classes.dueToday="{Binding IsDueToday}"
+                                           IsVisible="{Binding DueText, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
+                                <TextBlock Grid.Row="1"
+                                           Text="{Binding DueDateError}"
+                                           Classes="error"
+                                           IsVisible="{Binding DueDateError, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
+                            </Grid>
+
+                            <!-- 删除 -->
+                            <Button Grid.Column="6"
+                                    Content="删除"
+                                    HorizontalAlignment="Stretch"
+                                    Foreground="Red"
+                                    Background="Transparent"
+                                    Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RemoveTaskCommand}"
+                                    CommandParameter="{Binding}" />
                         </Grid>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
 
-                        <!-- 优先级（右外边距形成与截止日期列的间隔） -->
-                        <ComboBox Grid.Column="3"
-                                  Margin="0,0,8,0"
-                                  HorizontalAlignment="Stretch"
-                                  VerticalAlignment="Center"
-                                  ItemsSource="{Binding PriorityOptions}"
-                                  SelectedItem="{Binding Priority}">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate x:DataType="vm:PriorityOption">
-                                    <TextBlock Text="{Binding Label}" />
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-
-                        <!-- 截止日期：输入 + 到期文案/错误（右外边距形成与操作列的间隔） -->
-                        <Grid Grid.Column="4" Margin="0,0,8,0" VerticalAlignment="Center">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="Auto" />
-                                <RowDefinition Height="Auto" />
-                            </Grid.RowDefinitions>
-                            <TextBox Text="{Binding DueDateText, Mode=TwoWay}"
-                                     PlaceholderText="{Binding DueDatePlaceholder}"
-                                     VerticalAlignment="Center"
-                                     KeyDown="OnDueDateKeyDown"
-                                     LostFocus="OnDueDateLostFocus" />
-                            <TextBlock Grid.Row="1"
-                                       Text="{Binding DueText}"
-                                       Classes="dueText"
-                                       Classes.overdue="{Binding IsOverdue}"
-                                       Classes.dueToday="{Binding IsDueToday}"
-                                       IsVisible="{Binding DueText, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
-                            <TextBlock Grid.Row="1"
-                                       Text="{Binding DueDateError}"
-                                       Classes="error"
-                                       IsVisible="{Binding DueDateError, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
-                        </Grid>
-
-                        <!-- 删除 -->
-                        <Button Grid.Column="5"
-                                Content="删除"
-                                HorizontalAlignment="Stretch"
-                                Foreground="Red"
-                                Background="Transparent"
-                                Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RemoveTaskCommand}"
-                                CommandParameter="{Binding}" />
-                    </Grid>
-                </DataTemplate>
-            </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </ScrollViewer>
-
-    </DockPanel>
+        </DockPanel>
+    </Grid>
 </Window>

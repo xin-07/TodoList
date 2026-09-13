@@ -190,4 +190,105 @@ public class TodoRepositoryTests : IDisposable
         var idempotent = NewRepository();
         Assert.Single(idempotent.Items);
     }
+
+    [Fact]
+    public void AddFolder_落库且投影出现_默认未归类()
+    {
+        var repo = NewRepository();
+        Assert.True(repo.AddFolder("  工作  "));
+
+        var folder = Assert.Single(repo.Folders);
+        Assert.Equal("工作", folder.Name);
+        Assert.Empty(repo.Items);
+    }
+
+    [Fact]
+    public void AddFolder_空白或超长名称被拒绝()
+    {
+        var repo = NewRepository();
+        Assert.False(repo.AddFolder("   "));
+        Assert.False(repo.AddFolder(""));
+
+        var tooLong = new string('a', FolderName.MaxLength + 1);
+        Assert.False(repo.AddFolder(tooLong));
+
+        Assert.Empty(repo.Folders);
+    }
+
+    [Fact]
+    public void RenameFolder_改库且改投影()
+    {
+        var repo = NewRepository();
+        repo.AddFolder("旧名");
+        var id = repo.Folders.Single().Id;
+
+        Assert.True(repo.RenameFolder(id, "  新名  "));
+        Assert.Equal("新名", repo.Folders.Single().Name);
+    }
+
+    [Fact]
+    public void RenameFolder_不存在id_返回false()
+    {
+        var repo = NewRepository();
+        Assert.False(repo.RenameFolder("no-such-id", "任意名"));
+    }
+
+    [Fact]
+    public void SetFolder_归属与清除_均落库且同步投影()
+    {
+        var repo = NewRepository();
+        repo.AddFolder("工作");
+        var folderId = repo.Folders.Single().Id;
+        repo.Add("任务");
+        var taskId = repo.Items.Single().Id;
+
+        // 归属到文件夹。
+        repo.SetFolder(taskId, folderId);
+        Assert.Equal(folderId, repo.Items.Single().FolderId);
+        Assert.Equal(folderId, new DatabaseService(_dbPath).LoadAll().Single().FolderId);
+
+        // 清除（回未归类）。
+        repo.SetFolder(taskId, null);
+        Assert.Null(repo.Items.Single().FolderId);
+        Assert.Null(new DatabaseService(_dbPath).LoadAll().Single().FolderId);
+    }
+
+    [Fact]
+    public void DeleteFolder_连同内条目一并删除_并返回条目数()
+    {
+        var repo = NewRepository();
+        repo.AddFolder("工作");
+        var folderId = repo.Folders.Single().Id;
+        repo.Add("A");
+        repo.Add("B");
+        foreach (var t in repo.Items.ToList())
+            repo.SetFolder(t.Id, folderId);
+
+        var deleted = repo.DeleteFolder(folderId);
+
+        Assert.Equal(2, deleted);
+        Assert.Empty(repo.Folders);
+        Assert.Empty(repo.Items);
+        Assert.Empty(new DatabaseService(_dbPath).LoadAll());
+    }
+
+    [Fact]
+    public void DeleteFolder_不影响其他文件夹与未归类条目()
+    {
+        var repo = NewRepository();
+        repo.AddFolder("工作");
+        repo.AddFolder("生活");
+        var workId = repo.Folders.First(f => f.Name == "工作").Id;
+        repo.Add("工作任务");
+        repo.Add("生活任务");
+        repo.Add("未归类任务");
+        repo.SetFolder(repo.Items.First(t => t.Title == "工作任务").Id, workId);
+
+        var deleted = repo.DeleteFolder(workId);
+
+        Assert.Equal(1, deleted);
+        Assert.Single(repo.Folders);
+        Assert.Equal("生活", repo.Folders.Single().Name);
+        Assert.Equal(2, repo.Items.Count); // 生活任务 + 未归类任务
+    }
 }

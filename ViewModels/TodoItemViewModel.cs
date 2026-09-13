@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Linq;
 using System.Windows.Input;
 using TodoList.Models;
 using TodoList.Repositories;
@@ -29,6 +30,7 @@ public sealed class TodoItemViewModel : ViewModelBase
 
     private readonly ITodoRepository _repo;
     private readonly TodoItem _item;
+    private readonly IReadOnlyList<SidebarItemViewModel> _folderChoices;
 
     private bool _isEditing;
     private string _editText = "";
@@ -39,10 +41,11 @@ public sealed class TodoItemViewModel : ViewModelBase
     private bool _isOverdue;
     private bool _isDueToday;
 
-    public TodoItemViewModel(ITodoRepository repo, TodoItem item)
+    public TodoItemViewModel(ITodoRepository repo, TodoItem item, IReadOnlyList<SidebarItemViewModel> folderChoices)
     {
         _repo = repo;
         _item = item;
+        _folderChoices = folderChoices;
         _item.PropertyChanged += OnItemPropertyChanged;
         _editText = item.Title;
         _dueDateText = item.DueDate.HasValue ? DueDate.ToDisplayString(item.DueDate.Value) : "";
@@ -53,6 +56,37 @@ public sealed class TodoItemViewModel : ViewModelBase
         CancelEditCommand = new RelayCommand(_ => CancelEdit());
         SetDueDateCommand = new RelayCommand(_ => ApplyDueDate());
         SetPriorityCommand = new RelayCommand(p => SetPriority(p is TaskPriority tp ? tp : default));
+    }
+
+    /// <summary>归属下拉选项：未归类 + 全部文件夹。未归类项 Key="none"。</summary>
+    public IReadOnlyList<SidebarItemViewModel> FolderChoices => _folderChoices;
+
+    /// <summary>
+    /// 当前归属选择（下拉双向绑定）。选中的必须是 <see cref="_folderChoices"/> 中的同一实例；
+    /// 变更时写回仓库（按 FolderId 归属；"未归类"=null）。
+    /// </summary>
+    public SidebarItemViewModel SelectedFolder
+    {
+        get
+        {
+            foreach (var c in _folderChoices)
+            {
+                var match = _item.FolderId is null
+                    ? c.Kind == SidebarKind.Uncategorized
+                    : c.Kind == SidebarKind.Folder && c.Key == _item.FolderId;
+                if (match)
+                    return c;
+            }
+            // 兜底回退到第一个（未归类），避免出现空白下拉。
+            return _folderChoices.FirstOrDefault() ?? _folderChoices[0];
+        }
+        set
+        {
+            if (value is null)
+                return;
+            var folderId = value.Kind == SidebarKind.Folder ? value.Key : null;
+            _repo.SetFolder(_item.Id, folderId);
+        }
     }
 
     /// <summary>原始任务 Id。</summary>
@@ -310,6 +344,10 @@ public sealed class TodoItemViewModel : ViewModelBase
                 break;
             case nameof(TodoItem.DueDate):
                 RefreshDue();
+                break;
+            case nameof(TodoItem.FolderId):
+                // 归属变化时刷新下拉选中。
+                OnPropertyChanged(nameof(SelectedFolder));
                 break;
         }
     }

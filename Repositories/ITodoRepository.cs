@@ -13,6 +13,9 @@ public interface ITodoRepository
     /// <summary>当前任务列表的只读投影。只读，不允许外部 Add/Remove。</summary>
     System.Collections.ObjectModel.ReadOnlyObservableCollection<TodoItem> Items { get; }
 
+    /// <summary>当前文件夹列表的只读投影。只读，不允许外部 Add/Remove。</summary>
+    System.Collections.ObjectModel.ReadOnlyObservableCollection<MyFolder> Folders { get; }
+
     /// <summary>增删改发生后触发，供 ViewModel 刷新统计等派生数据。</summary>
     event Action? Changed;
 
@@ -33,4 +36,16 @@ public interface ITodoRepository
 
     /// <summary>删除指定任务。</summary>
     void Remove(string id);
+
+    /// <summary>新增一个文件夹。返回是否成功（名称非法时返回 false）。</summary>
+    bool AddFolder(string name);
+
+    /// <summary>重命名一个文件夹。返回是否成功（名称非法或不存在时返回 false）。</summary>
+    bool RenameFolder(string id, string name);
+
+    /// <summary>删除一个文件夹并连同其下所有条目一并删除。返回被一并删除的条目数（不存在时返回 0）。</summary>
+    int DeleteFolder(string id);
+
+    /// <summary>设置/清除任务归属文件夹；folderId 传 null 表示移到未归类。</summary>
+    void SetFolder(string id, string? folderId);
 }
