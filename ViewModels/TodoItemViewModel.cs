@@ -55,7 +55,6 @@ public sealed class TodoItemViewModel : ViewModelBase
         SaveEditCommand = new RelayCommand(_ => CommitEdit());
         CancelEditCommand = new RelayCommand(_ => CancelEdit());
         SetDueDateCommand = new RelayCommand(_ => ApplyDueDate());
-        SetPriorityCommand = new RelayCommand(p => SetPriority(p is TaskPriority tp ? tp : default));
     }
 
     /// <summary>归属下拉选项：未归类 + 全部文件夹。未归类项 Key="none"。</summary>
@@ -190,7 +189,6 @@ public sealed class TodoItemViewModel : ViewModelBase
     public ICommand SaveEditCommand { get; }
     public ICommand CancelEditCommand { get; }
     public ICommand SetDueDateCommand { get; }
-    public ICommand SetPriorityCommand { get; }
 
     private void BeginEdit()
     {
@@ -260,12 +258,6 @@ public sealed class TodoItemViewModel : ViewModelBase
         {
             DueDateError = $"日期格式无效，请输入 {DueDate.FormatHint}（示例：{DueDate.ToDisplayString(DateTime.Today)}）";
         }
-    }
-
-    private void SetPriority(TaskPriority priority)
-    {
-        if (priority != _item.Priority)
-            _repo.SetPriority(_item.Id, priority);
     }
 
     /// <summary>

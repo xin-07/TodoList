@@ -63,6 +63,13 @@ public class DatabaseService
         EnsureColumn(conn, "priority", "TEXT NOT NULL DEFAULT 'None'");
         EnsureColumn(conn, "due_date", "TEXT NULL");
         EnsureColumn(conn, "folder_id", "TEXT NULL");
+
+        // folder_id 查询索引：提升"按文件夹归类"类查询性能。置于补列之后，确保旧库先有该列再建索引。
+        using (var idx = conn.CreateCommand())
+        {
+            idx.CommandText = "CREATE INDEX IF NOT EXISTS idx_tasks_folder_id ON tasks(folder_id);";
+            idx.ExecuteNonQuery();
+        }
     }
 
     /// <summary>若指定列不存在则 ALTER TABLE 追加。幂等，可安全重复执行。</summary>
