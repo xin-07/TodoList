@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using TodoList.Database;
@@ -156,6 +157,29 @@ public class TodoRepositoryTests : IDisposable
         Assert.Equal("买牛奶", item.Title);
         Assert.Equal(TaskPriority.Medium, item.Priority);
         Assert.Equal(due, item.DueDate);
+    }
+
+    [Fact]
+    public void 读库_在非固定文化下_日期按o格式正确解析()
+    {
+        // 回归 B4-T10：读库改用 InvariantCulture + round-trip("o") 解析，不依赖进程 CurrentCulture。
+        var original = CultureInfo.CurrentCulture;
+        CultureInfo.CurrentCulture = CultureInfo.CreateSpecificCulture("de-DE");
+        try
+        {
+            var first = NewRepository();
+            first.Add("任务");
+            var idA = first.Items.Single().Id;
+            var due = new DateTime(2026, 12, 31, 18, 30, 0, DateTimeKind.Local);
+            first.SetDueDate(idA, due);
+
+            var reopened = NewRepository();
+            Assert.Equal(due, reopened.Items.Single().DueDate);
+        }
+        finally
+        {
+            CultureInfo.CurrentCulture = original;
+        }
     }
 
     [Fact]

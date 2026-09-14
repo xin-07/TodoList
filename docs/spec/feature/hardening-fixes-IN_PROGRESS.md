@@ -87,9 +87,9 @@
 - [x] B3-T6 `TodoItem.Title/FolderId` 改 `SetProperty`
 - [x] B3-T7 `ApplyFilter` 增量 diff 重写
 - [x] B3-T8 单测：`TodoItem` 通知 + 切换归属无整体重建（新增 2 用例）
-- [ ] B4-T9 `App.ResolveDatabasePath`：发布版路径回退 + 旧库复制迁移
-- [ ] B4-T10 日期读取改严格 `TryParseExact("o", InvariantCulture, RoundTripKind)`
-- [ ] B4-T11 单测：发布版回退 + 旧库重开日期（沿用临时库风格）
+- [x] B4-T9 `App.ResolveDatabasePath`：发布版路径回退 + 旧库复制迁移
+- [x] B4-T10 日期读取改严格 `TryParseExact("o", InvariantCulture, RoundTripKind)`
+- [x] B4-T11 单测：非固定文化下日期正确解析（新增 1 用例；发布版回退/迁移走人工验收）
 - [ ] B5-T12 `MainWindow.axaml.cs` 退出逻辑改 `LostFocus` + `SelectionChanged`
 - [ ] B6-T13（可选/DEFERRED）时间依赖注入时钟
 - [ ] 每批后：`dotnet build --no-restore` + `dotnet test` 全绿

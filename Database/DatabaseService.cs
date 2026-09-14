@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using Microsoft.Data.Sqlite;
 using TodoList.Models;
@@ -120,13 +121,24 @@ public class DatabaseService
                 Id = reader.GetString(0),
                 Title = reader.GetString(1),
                 IsCompleted = reader.GetInt64(2) != 0,
-                CreatedAt = DateTime.Parse(reader.GetString(3)),
+                CreatedAt = ParseDate(reader.GetString(3)) ?? default,
                 Priority = priority,
-                DueDate = reader.IsDBNull(5) ? null : DateTime.Parse(reader.GetString(5)),
+                DueDate = reader.IsDBNull(5) ? null : ParseDate(reader.GetString(5)),
                 FolderId = reader.IsDBNull(6) ? null : reader.GetString(6),
             });
         }
         return result;
+    }
+
+    /// <summary>
+    /// 严格按 round-trip("o") 不变文化解析日期，与写入端的 <c>ToString("o")</c> 对称。
+    /// 对非 "o" 的存量数据兜底走 <see cref="DateTime.Parse"/>（保留旧行为），避免读库抛错。
+    /// </summary>
+    private static DateTime? ParseDate(string raw)
+    {
+        if (DateTime.TryParseExact(raw, "o", CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var exact))
+            return exact;
+        return DateTime.Parse(raw);
     }
 
     public void Insert(string id, string title, DateTime createdAt)
