@@ -1,3 +1,3 @@
 #!/usr/bin/env sh
 # push 前发布版本；发布失败或本机无 PowerShell 时中断推送。
-exec .husky/lib/run-publish.sh strict
+exec .husky/lib/run-publish.sh

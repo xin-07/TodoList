@@ -1,3 +1,0 @@
-#!/usr/bin/env sh
-# clone / checkout 后发布版本；本机无 PowerShell 时仅警告、不阻塞。
-exec .husky/lib/run-publish.sh weak
