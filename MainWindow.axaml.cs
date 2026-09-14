@@ -117,6 +117,21 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
+    /// 新建文件夹输入框失焦时：若焦点移出输入区则自动收起。
+    /// 点"确认"按钮（在输入区内）不失焦收起，保证校验失败仍能显示错误。
+    /// </summary>
+    private void OnNewFolderLostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm || !vm.IsNewFolderOpen)
+            return;
+
+        var topLevel = TopLevel.GetTopLevel(this);
+        var focused = topLevel?.FocusManager?.GetFocusedElement();
+        if (!IsSourceWithin(focused as Visual, NewFolderInput))
+            vm.IsNewFolderOpen = false;
+    }
+
+    /// <summary>
     /// 点击其它区域时退出编辑：
     ///  - 新建输入区：若点击不在新建输入区内，收起输入区（放弃未确认输入）。
     ///  - 文件夹重命名：若点击不在正在重命名的文件夹项内，触发保存退出。

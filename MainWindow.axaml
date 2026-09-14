@@ -129,7 +129,8 @@
                                 Command="{Binding AddFolderCommand}" />
                         <TextBox Watermark="输入文件夹名称..."
                                  Text="{Binding NewFolderName, Mode=TwoWay}"
-                                 KeyDown="OnNewFolderKeyDown" />
+                                 KeyDown="OnNewFolderKeyDown"
+                                 LostFocus="OnNewFolderLostFocus" />
                         <TextBlock DockPanel.Dock="Bottom"
                                    Text="{Binding AddFolderError}"
                                    Classes="error"
