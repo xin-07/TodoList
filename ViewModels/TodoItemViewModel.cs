@@ -40,6 +40,8 @@ public sealed class TodoItemViewModel : ViewModelBase
     private string _dueText = "";
     private bool _isOverdue;
     private bool _isDueToday;
+    /// <summary>该行截止日期输入框当前是否聚焦（用户正在编辑）。定时器刷新时据此跳过覆盖输入内容。</summary>
+    public bool IsDueDateEditing { get; set; }
 
     public TodoItemViewModel(ITodoRepository repo, TodoItem item, IReadOnlyList<SidebarItemViewModel> folderChoices)
     {
@@ -272,7 +274,8 @@ public sealed class TodoItemViewModel : ViewModelBase
             DueText = "";
             IsOverdue = false;
             IsDueToday = false;
-            SetDueDateText("");
+            if (!IsDueDateEditing)
+                SetDueDateText("");
             OnPropertyChanged(nameof(DueDatePlaceholder));
             return;
         }
@@ -300,7 +303,8 @@ public sealed class TodoItemViewModel : ViewModelBase
             DueText = "";
         }
 
-        SetDueDateText(DueDate.ToDisplayString(due.Value));
+        if (!IsDueDateEditing)
+            SetDueDateText(DueDate.ToDisplayString(due.Value));
     }
 
     private void SetDueDateText(string value)

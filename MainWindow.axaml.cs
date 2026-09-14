@@ -272,10 +272,18 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnDueDateGotFocus(object? sender, GotFocusEventArgs e)
+    {
+        // 标记"编辑中"，定时器 RefreshDue 将跳过覆盖该输入框内容。
+        if (sender is Control c && c.DataContext is TodoItemViewModel vm)
+            vm.IsDueDateEditing = true;
+    }
+
     private void OnDueDateLostFocus(object? sender, RoutedEventArgs e)
     {
         if (sender is Control c && c.DataContext is TodoItemViewModel vm)
         {
+            vm.IsDueDateEditing = false;
             if (vm.SetDueDateCommand.CanExecute(null))
                 vm.SetDueDateCommand.Execute(null);
         }

@@ -280,6 +280,7 @@
                                          Watermark="{Binding DueDatePlaceholder}"
                                          VerticalAlignment="Center"
                                          KeyDown="OnDueDateKeyDown"
+                                         GotFocus="OnDueDateGotFocus"
                                          LostFocus="OnDueDateLostFocus" />
                                 <TextBlock Grid.Row="1"
                                            Text="{Binding DueText}"

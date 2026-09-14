@@ -83,7 +83,7 @@
 - [x] B1-T2 `Tests/TodoList.Tests.csproj`：`net10.0` → `net8.0`
 - [x] B1-T3 `DatabaseService.Initialize`：加 `idx_tasks_folder_id` 索引（仅索引，不加外键）
 - [x] B1-T4 删除 `TodoItemViewModel.SetPriorityCommand`
-- [ ] B2-T5 `RefreshDue` 加"聚焦时跳过回写"守卫
+- [x] B2-T5 `RefreshDue` 加"聚焦时跳过回写"守卫
 - [ ] B3-T6 `TodoItem.Title/FolderId` 改 `SetProperty`
 - [ ] B3-T7 `ApplyFilter` 增量 diff 重写
 - [ ] B3-T8 单测：搜索/切视图增删移动事件序 + 标题/归属实时刷新
