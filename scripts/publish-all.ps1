@@ -11,6 +11,9 @@
         so end users don't need to install the .NET runtime.
       - Platform-specific values (RID list, naming) live here only; the
         main project does not hardcode any RID.
+      - Cross-platform: run via `powershell`/`powershell.exe` (Windows)
+        or `pwsh` (PowerShell Core, macOS/Linux). The git hooks in /.husky
+        detect the available PowerShell automatically.
 #>
 [CmdletBinding()]
 param(

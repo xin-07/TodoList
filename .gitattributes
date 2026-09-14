@@ -1,0 +1,3 @@
+# 强制 husky 钩子以 LF 检出，避免 autocrlf 转成 CRLF 破坏 shell 脚本的 shebang 与执行。
+.husky/** text eol=lf
+*.sh text eol=lf
