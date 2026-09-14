@@ -210,6 +210,34 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>
+    /// 重命名输入框失焦即保存退出（作为"点击外部退出"的可靠触发点；
+    /// 原根指针事件常被 ListBox/Button 吞掉而收不到）。
+    /// </summary>
+    private void OnFolderRenameLostFocus(object? sender, RoutedEventArgs e)
+    {
+        if (sender is Control c && c.DataContext is SidebarItemViewModel item)
+        {
+            if (item.SaveRenameCommand.CanExecute(null))
+                item.SaveRenameCommand.Execute(null);
+        }
+    }
+
+    /// <summary>
+    /// 切换到其它边栏项时，若仍处于重命名态则保存退出（补 LostFocus 之外"点击另一文件夹"的路径）。
+    /// </summary>
+    private void OnSidebarSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm)
+            return;
+
+        foreach (var item in vm.SidebarItems)
+        {
+            if (item.IsRenaming && item.SaveRenameCommand.CanExecute(null))
+                item.SaveRenameCommand.Execute(null);
+        }
+    }
+
     private void OnTitleDoubleTapped(object? sender, TappedEventArgs e)
     {
         if (sender is Control c && c.DataContext is TodoItemViewModel vm)

@@ -70,6 +70,7 @@
                 <StackPanel Spacing="6">
                     <ListBox ItemsSource="{Binding SidebarItems}"
                              SelectedItem="{Binding SelectedSidebar}"
+                             SelectionChanged="OnSidebarSelectionChanged"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              ScrollViewer.VerticalScrollBarVisibility="Disabled">
                         <ListBox.ItemTemplate>
@@ -79,7 +80,8 @@
                                     <StackPanel Orientation="Horizontal" Spacing="6"
                                                 IsVisible="{Binding IsRenaming}">
                                         <TextBox Text="{Binding EditText, Mode=TwoWay}"
-                                                 KeyDown="OnFolderRenameKeyDown" />
+                                                 KeyDown="OnFolderRenameKeyDown"
+                                                 LostFocus="OnFolderRenameLostFocus" />
                                         <Button Content="✓" Foreground="Green" Background="Transparent"
                                                 Command="{Binding SaveRenameCommand}" />
                                     </StackPanel>

@@ -90,7 +90,7 @@
 - [x] B4-T9 `App.ResolveDatabasePath`：发布版路径回退 + 旧库复制迁移
 - [x] B4-T10 日期读取改严格 `TryParseExact("o", InvariantCulture, RoundTripKind)`
 - [x] B4-T11 单测：非固定文化下日期正确解析（新增 1 用例；发布版回退/迁移走人工验收）
-- [ ] B5-T12 `MainWindow.axaml.cs` 退出逻辑改 `LostFocus` + `SelectionChanged`
+- [x] B5-T12 重命名退出改 `LostFocus` + 边栏 `SelectionChanged`（纯增量新增可靠触发点，保留原指针兜底）
 - [ ] B6-T13（可选/DEFERRED）时间依赖注入时钟
 - [ ] 每批后：`dotnet build --no-restore` + `dotnet test` 全绿
 - [ ] 人工验收：B2/B3/B4/B5 由用户运行验证
