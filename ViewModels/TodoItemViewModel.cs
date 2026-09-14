@@ -186,7 +186,18 @@ public sealed class TodoItemViewModel : ViewModelBase
     public string DueDatePlaceholder => DueDate.ToDisplayString(_now().Date);
 
     /// <summary>到期展示文案（如"已过期""今天到期"，未设置则为空串）。</summary>
-    public string DueText { get => _dueText; private set => SetProperty(ref _dueText, value); }
+    public string DueText
+    {
+        get => _dueText;
+        private set
+        {
+            if (SetProperty(ref _dueText, value))
+                OnPropertyChanged(nameof(HasDueText));
+        }
+    }
+
+    /// <summary>是否有到期提示文案（驱动截止日期输入框的对齐方式：无提示居中、有提示左右分布）。</summary>
+    public bool HasDueText => !string.IsNullOrEmpty(DueText);
 
     public bool IsOverdue { get => _isOverdue; private set => SetProperty(ref _isOverdue, value); }
     public bool IsDueToday { get => _isDueToday; private set => SetProperty(ref _isDueToday, value); }

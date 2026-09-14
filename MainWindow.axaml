@@ -45,6 +45,14 @@
             <Setter Property="FontSize" Value="11" />
         </Style>
 
+        <!-- 截止日期输入框：无到期提示时水平居中，有提示时靠左（与提示文案左右分布） -->
+        <Style Selector="TextBox.dueInput">
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBox.dueInput.hasDue">
+            <Setter Property="HorizontalAlignment" Value="Left" />
+        </Style>
+
         <!-- 列头样式 -->
         <Style Selector="TextBlock.header">
             <Setter Property="FontWeight" Value="Bold" />
@@ -180,7 +188,7 @@
                     Padding="0,0,0,4"
                     BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
                     BorderThickness="0,0,0,1">
-                <Grid ColumnDefinitions="4,40,*,96,100,110,64">
+                <Grid ColumnDefinitions="4,40,*,88,92,160,64">
                     <Border Grid.Column="0" />
                     <TextBlock Grid.Column="1" Text="完成"
                                Classes="header" VerticalAlignment="Center" HorizontalAlignment="Center" />
@@ -202,7 +210,7 @@
                 <ItemsControl ItemsSource="{Binding DisplayItems}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:TodoItemViewModel">
-                        <Grid ColumnDefinitions="4,40,*,96,100,110,64"
+                        <Grid ColumnDefinitions="4,40,*,88,92,160,64"
                               Margin="0,3"
                               Opacity="{Binding RowOpacity}">
                             <!-- 优先级高亮条 -->
@@ -273,23 +281,27 @@
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
 
-                            <!-- 截止日期：输入 + 到期文案/错误 -->
-                            <Grid Grid.Column="5" Margin="0,0,8,0" VerticalAlignment="Center">
+                            <!-- 截止日期：无到期提示时输入框居中；有提示时输入框靠左、提示靠右（左右分布），错误提示在下方 -->
+                            <Grid Grid.Column="5" Margin="0,0,4,0" VerticalAlignment="Center">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
-                                <TextBox Text="{Binding DueDateText, Mode=TwoWay}"
+                                <TextBox Classes="dueInput"
+                                         Classes.hasDue="{Binding HasDueText}"
+                                         Width="96"
+                                         Text="{Binding DueDateText, Mode=TwoWay}"
                                          Watermark="{Binding DueDatePlaceholder}"
                                          VerticalAlignment="Center"
                                          KeyDown="OnDueDateKeyDown"
                                          GotFocus="OnDueDateGotFocus"
                                          LostFocus="OnDueDateLostFocus" />
-                                <TextBlock Grid.Row="1"
-                                           Text="{Binding DueText}"
+                                <TextBlock Text="{Binding DueText}"
                                            Classes="dueText"
                                            Classes.overdue="{Binding IsOverdue}"
                                            Classes.dueToday="{Binding IsDueToday}"
+                                           HorizontalAlignment="Right"
+                                           VerticalAlignment="Center"
                                            IsVisible="{Binding DueText, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
                                 <TextBlock Grid.Row="1"
                                            Text="{Binding DueDateError}"
