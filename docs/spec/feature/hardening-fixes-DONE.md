@@ -1,8 +1,8 @@
-# 加固修复（前后端一致性修复与重构） — complex · IN_PROGRESS
+# 加固修复（前后端一致性修复与重构） — complex · DONE
 
 > 单文档：SPEC（Why/What/Impact/Requirements）+ Tasks + Checklist。
-> 状态：IN_PROGRESS。分批实现中，每批编译 + 单测通过后由用户人工验收再进入下一批。
-> 统一硬约束：**每批修复都必须保持修改点之外的既有行为完全不变**；含用户可见行为变化的批次（B2/B3/B4/B5）单独交付用户测试。
+> 状态：DONE。分批实现完毕，每批编译 + 单测通过并由用户人工验收后提交（B1..B5 五笔）。
+> 统一硬约束：**每批修复都保持修改点之外的既有行为完全不变**；含用户可见行为变化的批次（B2/B3/B4/B5）各自交付用户测试。
 > 已确认决策：分批逐步；B4 旧库复制到 exe 旁目录并保留原文件；B6 时间注入纳入技术债 DEFERRED，本次不做。
 
 ## Why
@@ -91,17 +91,21 @@
 - [x] B4-T10 日期读取改严格 `TryParseExact("o", InvariantCulture, RoundTripKind)`
 - [x] B4-T11 单测：非固定文化下日期正确解析（新增 1 用例；发布版回退/迁移走人工验收）
 - [x] B5-T12 重命名退出改 `LostFocus` + 边栏 `SelectionChanged`（纯增量新增可靠触发点，保留原指针兜底）
-- [ ] B6-T13（可选/DEFERRED）时间依赖注入时钟
-- [ ] 每批后：`dotnet build --no-restore` + `dotnet test` 全绿
-- [ ] 人工验收：B2/B3/B4/B5 由用户运行验证
+- [x] B6-T13（DEFERRED）时间依赖注入时钟 → 见下方技术债登记
+- [x] 每批后：`dotnet build --no-restore` + `dotnet test` 全绿（16→19 用例）
+- [x] 人工验收：B2/B3/B4/B5 由用户运行验证通过
+
+## 技术债登记（宪法 Article 3）
+
+- `// DEFERRED：到期/过期逻辑中的 DateTime.Now/Today 无注入边界，不可测；defers-to：2026-12-31；owner：xiny`。范围：`MainWindowViewModel.ScanDueAlarms`、`TodoItemViewModel.RefreshDue`、`DueDatePlaceholder` 三处时间源。本次为控制回归风险、遵循"不急改"决策而缓做；届时给两个 VM 注入可选 `Func<DateTime>` 时钟并补到期逻辑单测。
 
 ---
 
 ### Checklist
-- [ ] B1：编译通过、9 测试仍全绿、常规运行无任何行为差异、写死一条日志路径可观测
-- [ ] B2：输入截止日期途中 tick 不覆盖
-- [ ] B3：改标题/切归属实时刷新、下拉不再崩溃、搜索与切视图结果不变
-- [ ] B4：单文件 exe 数据落在 exe 旁目录，旧数据迁移成功
-- [ ] B5：编辑态点外部可靠退出
-- [ ] 所有批次 `dotnet build --no-restore` 0 错误、`dotnet test` 全绿
-- [ ] 每批 commit 前向用户展示拟提交信息并获确认（宪法 Article 1/4）
+- [x] B1：编译通过、测试全绿、常规运行无行为差异、异常可写 `logs/`（用户已随后续批次验收运行）
+- [x] B2：输入截止日期途中 tick 不覆盖（人工验收通过）
+- [x] B3：改标题/切归属实时刷新、下拉不崩溃、搜索与切视图结果不变（人工验收通过）
+- [x] B4：开发模式回归无差异、单文件 exe 数据落 exe 旁目录、旧数据迁移（人工验收通过）
+- [x] B5：编辑态点外部可靠退出（人工验收通过）
+- [x] 所有批次 `dotnet build --no-restore` 0 错误、`dotnet test` 全绿（19/19）
+- [x] 每批 commit 前向用户展示拟提交信息并获确认（宪法 Article 1/4）
