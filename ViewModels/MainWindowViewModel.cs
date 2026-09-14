@@ -49,6 +49,8 @@ public class MainWindowViewModel : ViewModelBase
     public const string KeyUncategorized = "none";
 
     private readonly ITodoRepository _repo;
+    /// <summary>可注入时钟，默认系统当前时间；到期提醒扫描据此可测。</summary>
+    private readonly Func<DateTime> _now;
     private readonly Dictionary<string, TodoItemViewModel> _vmById = new();
     private readonly Dictionary<string, SidebarItemViewModel> _folderSidebarById = new();
     /// <summary>上次重建边栏时的文件夹快照（Id+Name），用于判断是否需要重建。</summary>
@@ -76,9 +78,10 @@ public class MainWindowViewModel : ViewModelBase
     private int _totalCount;
     private int _completedCount;
 
-    public MainWindowViewModel(ITodoRepository repo)
+    public MainWindowViewModel(ITodoRepository repo, Func<DateTime>? nowProvider = null)
     {
         _repo = repo;
+        _now = nowProvider ?? (() => DateTime.Now);
         _filterView = new ReadOnlyObservableCollection<TodoItemViewModel>(_filterDisplay);
         _sidebarView = new ReadOnlyObservableCollection<SidebarItemViewModel>(_sidebarItems);
         _folderChoicesView = new ReadOnlyObservableCollection<SidebarItemViewModel>(_folderChoices);
@@ -441,7 +444,7 @@ public class MainWindowViewModel : ViewModelBase
 
     private void ScanDueAlarms()
     {
-        var now = DateTime.Now;
+        var now = _now();
         foreach (var vm in _vmById.Values)
         {
             var item = vm.Item;

@@ -31,6 +31,8 @@ public sealed class TodoItemViewModel : ViewModelBase
     private readonly ITodoRepository _repo;
     private readonly TodoItem _item;
     private readonly IReadOnlyList<SidebarItemViewModel> _folderChoices;
+    /// <summary>可注入时钟，默认系统当前时间；到期判断据此可测。</summary>
+    private readonly Func<DateTime> _now;
 
     private bool _isEditing;
     private string _editText = "";
@@ -43,11 +45,13 @@ public sealed class TodoItemViewModel : ViewModelBase
     /// <summary>该行截止日期输入框当前是否聚焦（用户正在编辑）。定时器刷新时据此跳过覆盖输入内容。</summary>
     public bool IsDueDateEditing { get; set; }
 
-    public TodoItemViewModel(ITodoRepository repo, TodoItem item, IReadOnlyList<SidebarItemViewModel> folderChoices)
+    public TodoItemViewModel(ITodoRepository repo, TodoItem item, IReadOnlyList<SidebarItemViewModel> folderChoices,
+        Func<DateTime>? nowProvider = null)
     {
         _repo = repo;
         _item = item;
         _folderChoices = folderChoices;
+        _now = nowProvider ?? (() => DateTime.Now);
         _item.PropertyChanged += OnItemPropertyChanged;
         _editText = item.Title;
         _dueDateText = item.DueDate.HasValue ? DueDate.ToDisplayString(item.DueDate.Value) : "";
@@ -179,7 +183,7 @@ public sealed class TodoItemViewModel : ViewModelBase
     public string DueDateError { get => _dueDateError; private set => SetProperty(ref _dueDateError, value); }
 
     /// <summary>截止日期输入框占位提示：显示当天日期作为输入模板，随每天日期更新。</summary>
-    public string DueDatePlaceholder => DueDate.ToDisplayString(DateTime.Today);
+    public string DueDatePlaceholder => DueDate.ToDisplayString(_now().Date);
 
     /// <summary>到期展示文案（如"已过期""今天到期"，未设置则为空串）。</summary>
     public string DueText { get => _dueText; private set => SetProperty(ref _dueText, value); }
@@ -281,7 +285,7 @@ public sealed class TodoItemViewModel : ViewModelBase
         }
 
         var date = due.Value.Date;
-        var today = DateTime.Today;
+        var today = _now().Date;
 
         if (!_item.IsCompleted && date < today)
         {

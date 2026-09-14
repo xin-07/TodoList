@@ -91,13 +91,14 @@
 - [x] B4-T10 日期读取改严格 `TryParseExact("o", InvariantCulture, RoundTripKind)`
 - [x] B4-T11 单测：非固定文化下日期正确解析（新增 1 用例；发布版回退/迁移走人工验收）
 - [x] B5-T12 重命名退出改 `LostFocus` + 边栏 `SelectionChanged`（纯增量新增可靠触发点，保留原指针兜底）
-- [x] B6-T13（DEFERRED）时间依赖注入时钟 → 见下方技术债登记
+- [x] B6-T13 时间依赖注入时钟 → 已实施（见下），撤销原 DEFERRED
 - [x] 每批后：`dotnet build --no-restore` + `dotnet test` 全绿（16→19 用例）
 - [x] 人工验收：B2/B3/B4/B5 由用户运行验证通过
 
-## 技术债登记（宪法 Article 3）
+## 技术债登记（宪法 Article 3 · 撤销记录）
 
-- `// DEFERRED：到期/过期逻辑中的 DateTime.Now/Today 无注入边界，不可测；defers-to：2026-12-31；owner：xiny`。范围：`MainWindowViewModel.ScanDueAlarms`、`TodoItemViewModel.RefreshDue`、`DueDatePlaceholder` 三处时间源。本次为控制回归风险、遵循"不急改"决策而缓做；届时给两个 VM 注入可选 `Func<DateTime>` 时钟并补到期逻辑单测。
+- ~~DEFERRED（2026-09-14 用户反转）：到期/过期逻辑中的 `DateTime.Now/Today` 无注入边界，不可测。~~ **已于 2026-09-14 撤销并实施。**
+- **B6 实施**：`MainWindowViewModel(ITodoRepository, Func<DateTime>? nowProvider = null)` 与 `TodoItemViewModel(..., Func<DateTime>? nowProvider = null)` 引入可注入时钟（默认 `DateTime.Now`）；到期文案（`RefreshDue`）、占位提示（`DueDatePlaceholder`）、到期扫描（`ScanDueAlarms`）均改由注入时钟驱动。新增 6 个到期逻辑单测（过去/今天/未来/已完成/无日期/占位提示）。无开放技术债。
 
 ---
 
