@@ -12,12 +12,18 @@ public class TodoItem : ViewModelBase
     private bool _isCompleted;
     private TaskPriority _priority;
     private DateTime? _dueDate;
+    private string _title = "";
+    private string? _folderId;
 
     /// <summary>唯一标识（由 Repository 生成）。</summary>
     public string Id { get; set; } = "";
 
     /// <summary>任务标题。</summary>
-    public string Title { get; set; } = "";
+    public string Title
+    {
+        get => _title;
+        set => SetProperty(ref _title, value);
+    }
 
     /// <summary>是否已完成。仅允许 Repository 写入，界面是只读展示。</summary>
     public bool IsCompleted
@@ -44,5 +50,9 @@ public class TodoItem : ViewModelBase
     }
 
     /// <summary>所属文件夹 Id（null = 未归类）。单归属；仅允许 Repository 写入。</summary>
-    public string? FolderId { get; set; }
+    public string? FolderId
+    {
+        get => _folderId;
+        set => SetProperty(ref _folderId, value);
+    }
 }

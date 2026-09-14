@@ -393,6 +393,8 @@ public class MainWindowViewModel : ViewModelBase
 
     /// <summary>
     /// 重建过滤后的展示列表：叠加"标题搜索 + 当前视图（全部/文件夹/未归类）"两层过滤。
+    /// 采用增量 diff：先移除不再命中的项，再按目标顺序补齐/校正，整体不复建。
+    /// 避免在全量重建下于 ComboBox 选中回调链内触发集合重置导致重入崩溃。
     /// 空白搜索与"全部"视图时不额外过滤。
     /// </summary>
     private void ApplyFilter()
@@ -400,7 +402,8 @@ public class MainWindowViewModel : ViewModelBase
         var query = _newTaskTitle.Trim();
         var activeKey = SelectedSidebar?.Key;
 
-        _filterDisplay.Clear();
+        // 目标序列：当前全部项过滤出符合搜索与视图的子序列（保持原相对顺序）。
+        var target = new List<TodoItemViewModel>(_display.Count);
         foreach (var vm in _display)
         {
             if (query.Length != 0
@@ -410,7 +413,26 @@ public class MainWindowViewModel : ViewModelBase
             if (activeKey is not null && activeKey != KeyAll && !IsInView(vm.Item, activeKey))
                 continue;
 
-            _filterDisplay.Add(vm);
+            target.Add(vm);
+        }
+
+        // 增删均基于引用相等（TodoItemViewModel 未重载 Equals），稳定。
+        // 1) 移除不再命中的项。
+        for (var i = _filterDisplay.Count - 1; i >= 0; i--)
+        {
+            if (!target.Contains(_filterDisplay[i]))
+                _filterDisplay.RemoveAt(i);
+        }
+
+        // 2) 校正顺序：使 _filterDisplay 与 target 完全一致（缺失项补入，乱序者移动到位）。
+        for (var i = 0; i < target.Count; i++)
+        {
+            var wanted = target[i];
+            var cur = _filterDisplay.IndexOf(wanted);
+            if (cur == -1)
+                _filterDisplay.Insert(i, wanted);
+            else if (cur != i)
+                _filterDisplay.Move(cur, i);
         }
     }
 

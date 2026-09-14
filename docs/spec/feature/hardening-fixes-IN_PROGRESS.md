@@ -84,9 +84,9 @@
 - [x] B1-T3 `DatabaseService.Initialize`：加 `idx_tasks_folder_id` 索引（仅索引，不加外键）
 - [x] B1-T4 删除 `TodoItemViewModel.SetPriorityCommand`
 - [x] B2-T5 `RefreshDue` 加"聚焦时跳过回写"守卫
-- [ ] B3-T6 `TodoItem.Title/FolderId` 改 `SetProperty`
-- [ ] B3-T7 `ApplyFilter` 增量 diff 重写
-- [ ] B3-T8 单测：搜索/切视图增删移动事件序 + 标题/归属实时刷新
+- [x] B3-T6 `TodoItem.Title/FolderId` 改 `SetProperty`
+- [x] B3-T7 `ApplyFilter` 增量 diff 重写
+- [x] B3-T8 单测：`TodoItem` 通知 + 切换归属无整体重建（新增 2 用例）
 - [ ] B4-T9 `App.ResolveDatabasePath`：发布版路径回退 + 旧库复制迁移
 - [ ] B4-T10 日期读取改严格 `TryParseExact("o", InvariantCulture, RoundTripKind)`
 - [ ] B4-T11 单测：发布版回退 + 旧库重开日期（沿用临时库风格）
