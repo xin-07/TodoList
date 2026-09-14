@@ -1,6 +1,6 @@
 # TodoList
 
-一个基于 **Avalonia (12.1.1) + .NET 8** 的跨平台桌面待办事项应用，采用 **SQLite 作为单一权威数据源** 的 MVVM 架构。
+一个基于 **Avalonia (11.3.22) + .NET 8** 的跨平台桌面待办事项应用，采用 **SQLite 作为单一权威数据源** 的 MVVM 架构。
 
 ## ✨ 功能
 
@@ -11,16 +11,17 @@
 - 任务标题原地编辑（双击 / F2 进入编辑，Enter 提交、Esc 取消、失焦保存）
 - 优先级：无 / 低 / 中 / 高 四档，行首高亮条，列表按优先级从高到低排序
 - 截止日期：严格 `yyyy-MM-dd` 格式校验，输入框占位提示当天日期，到期展示「今天到期 / 已过期」
-- 到期桌面通知提醒（应用运行期间每分钟检查未完成且已到期的任务）
+- 到期桌面通知提醒（应用运行期间每分钟检查未完成且已到期的任务；到期判断由可注入时钟驱动，便于测试）
+- 全局异常日志：未处理异常自动落盘输出目录 `logs/`（`crash-日期.log`，追加写盘），便于离线诊断
 - 输入校验：新增与编辑统一校验（空 / 去空白 / 标题超长 100 字符、文件夹名超长 50 字符）
 - 完成置灰展示
 - 已办 / 总数统计
 - 任务列表超出窗口高度时上下滚动
-- `TodoRepository` 集成测试（隔离临时 SQLite，不触碰 `data/todo.db`，覆盖任务与文件夹增删改、归属、联删与旧库迁移）
+- 单元/集成测试共 25 个（隔离临时 SQLite，不触碰 `data/todo.db`）：`TodoRepository` 覆盖任务与文件夹增删改、归属、联删与旧库迁移；另有通知属性/增量过滤回归与到期逻辑（注入时钟）单测
 
 ## 🔧 技术栈
 
-- **GUI**：Avalonia 12.1.1（XAML MVVM）
+- **GUI**：Avalonia 11.3.22（XAML MVVM）
 - **运行时**：.NET 8
 - **数据库**：SQLite（`Microsoft.Data.Sqlite`）
 
@@ -53,6 +54,10 @@ dotnet publish -c Release -r win-x64 --self-contained true -o dist/win-x64
 TodoList/
 ├── .husky
 │   └── commit-msg
+├── Assets                                             # 应用资源：app.svg 为窗口图标唯一权威源，生成 ico/png。
+│   ├── app.ico
+│   ├── app.png
+│   └── app.svg
 ├── Database                                           # SQLite 数据访问层：负责建库建表，以及底层增删改查 SQL。
 │   └── DatabaseService.cs                             # SQLite 数据访问层：负责建库建表，以及底层增删改查 SQL。
 ├── dist
@@ -63,8 +68,6 @@ TodoList/
 │   │   ├── TodoList
 │   │   └── TodoList.pdb
 │   └── win-x64
-│       ├── libHarfBuzzSharp.pdb
-│       ├── libSkiaSharp.pdb
 │       ├── TodoList.exe
 │       └── TodoList.pdb
 ├── docs
@@ -76,7 +79,8 @@ TodoList/
 │       └── feature
 │           ├── due-date-input-validation-DONE.md
 │           ├── enhance-todo-features-IN_PROGRESS.md
-│           └── folders-add-DONE.md                    # 文件夹收纳功能 SPEC：三视图边栏、归属下拉、新建/重命名/删除确认、联删与旧库迁移。
+│           ├── folders-add-DONE.md                    # 文件夹收纳功能 SPEC：三视图边栏、归属下拉、新建/重命名/删除确认、联删与旧库迁移。
+│           └── hardening-fixes-DONE.md                # 加固修复 SPEC：全局异常日志、定时器守卫、增量过滤、发布版数据落盘与迁移、时间注入。
 ├── Models                                             # 数据模型层：任务与文件夹模型、优先级枚举、标题/文件夹名/截止日期校验助手。
 │   ├── DueDate.cs                                     # 截止日期格式的"单一权威源"助手：定义全应用统一的日期格式常量与严格解析逻辑。
 │   ├── FolderName.cs                                  # 文件夹名称的"单一权威源"校验助手：Trim + 非空 + MaxLength。
@@ -90,8 +94,10 @@ TodoList/
 ├── scripts
 │   ├── check-commit-msg.js
 │   └── publish-all.ps1
-├── Tests                                              # 测试项目：TodoRepository 集成测试。
-│   └── TodoList.Tests                                 # TodoRepository 集成测试。
+├── Tests                                              # 测试项目：仓库集成测试 + VM 单测。
+│   └── TodoList.Tests
+│       ├── B3NotificationAndFilterTests.cs            # 通知属性与增量过滤回归用例。
+│       ├── B6ClockInjectionTests.cs                   # 到期逻辑（注入时钟）单测。
 │       ├── TodoList.Tests.csproj
 │       └── TodoRepositoryTests.cs                     # 任务与文件夹用例，使用临时 SQLite，不触碰 data/todo.db。
 ├── ViewModels                                         # MVVM 视图模型层：主窗口 VM、边栏项 VM、行 VM、命令与基类。
