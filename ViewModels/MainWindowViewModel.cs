@@ -314,6 +314,11 @@ public class MainWindowViewModel : ViewModelBase
             SelectedSidebar = _sidebarItems.FirstOrDefault(i => i.Key == preserve);
         if (SelectedSidebar is null)
             SelectedSidebar = _sidebarItems.FirstOrDefault(i => i.Key == KeyAll);
+
+        // _folderChoices 刚经历 Clear+重建，行内下拉的选中项在 Clear 时被置空且不会自动恢复；
+        // 通知各行重新读取 SelectedFolder（按 Key 匹配新实例），避免下拉显示空白。
+        foreach (var vm in _vmById.Values)
+            vm.RefreshFolderSelection();
     }
 
     private void OnCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)

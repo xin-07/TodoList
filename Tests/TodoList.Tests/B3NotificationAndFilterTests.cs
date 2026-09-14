@@ -80,4 +80,32 @@ public class B3NotificationAndFilterTests : IDisposable
         Assert.Equal(3, vm.DisplayItems.Count);
         Assert.Equal(0, resets);
     }
+
+    [Fact]
+    public void AddFolder_重建归属选项后_各行发出SelectedFolder变更通知()
+    {
+        var repo = NewRepository();
+        repo.Add("任务A");
+        repo.Add("任务B");
+        var taskId = repo.Items.First().Id;
+        repo.AddFolder("工作");
+        repo.SetFolder(taskId, repo.Folders.Single().Id);
+
+        var vm = new MainWindowViewModel(repo);
+        var row = vm.DisplayItems.First(v => v.Id == taskId);
+
+        var notified = 0;
+        row.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(TodoItemViewModel.SelectedFolder))
+                notified++;
+        };
+
+        // 新建文件夹触发 _folderChoices 重建；行 VM 必须广播 SelectedFolder，
+        // 否则 ComboBox 在 Clear 后停留在空选中，表现为下拉空白。
+        repo.AddFolder("第二个文件夹");
+
+        Assert.True(notified > 0, "重建归属选项后未发出 SelectedFolder 变更通知");
+        Assert.Equal("工作", row.SelectedFolder.Name);
+    }
 }

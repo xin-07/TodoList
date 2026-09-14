@@ -94,6 +94,12 @@ public sealed class TodoItemViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// 归属选项集合重建后（新建/改名/删除文件夹），让下拉重新读取 <see cref="SelectedFolder"/>。
+    /// 否则 ComboBox 在 Clear 时被置空选中，重建后不会自动恢复，表现为下拉空白。
+    /// </summary>
+    public void RefreshFolderSelection() => OnPropertyChanged(nameof(SelectedFolder));
+
     /// <summary>原始任务 Id。</summary>
     public string Id => _item.Id;
 
