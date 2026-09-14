@@ -10,6 +10,7 @@
         x:Name="Root"
         x:DataType="vm:MainWindowViewModel"
         Title="TodoList"
+        Icon="/Assets/app.ico"
         Width="760" Height="440"
         WindowStartupLocation="CenterScreen">
 

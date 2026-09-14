@@ -5,6 +5,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>
 
   <!-- 单文件发布：仅当显式指定 RuntimeIdentifier 时生效，避免破坏无 RID 的普通发布。
@@ -26,5 +27,10 @@
   <ItemGroup>
     <Compile Remove="Tests\**\*.cs" />
     <None Remove="Tests\**" />
+  </ItemGroup>
+
+  <!-- 窗口标题栏图标资源：app.ico 由 Assets/app.svg（唯一权威源）生成，仅嵌入 ico。 -->
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\app.ico" />
   </ItemGroup>
 </Project>
