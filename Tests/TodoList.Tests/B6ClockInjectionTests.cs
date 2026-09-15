@@ -96,4 +96,109 @@ public class B6ClockInjectionTests : IDisposable
         var vm = NewDueVm(null);
         Assert.Equal("2026-01-15", vm.DueDatePlaceholder);
     }
+
+    [Fact]
+    public void DueDateSelectedDate_读取与修改_落库与通知正常()
+    {
+        var repo = new TodoRepository(new DatabaseService(_dbPath));
+        repo.Add("测试任务");
+        var item = repo.Items.First();
+        var choices = new SidebarItemViewModel[]
+        {
+            new SidebarItemViewModel(repo, SidebarKind.Uncategorized),
+        };
+        var fixedNow = new DateTime(2026, 1, 15, 10, 0, 0);
+        var vm = new TodoItemViewModel(repo, item, choices, () => fixedNow);
+
+        Assert.Null(vm.DueDateSelectedDate);
+
+        var targetDate = new DateTime(2026, 9, 20);
+        vm.DueDateSelectedDate = targetDate;
+
+        Assert.Equal(targetDate, vm.DueDateSelectedDate);
+        Assert.Equal(targetDate, item.DueDate);
+    }
+
+    [Fact]
+    public void DueDateSelectedDate_置为null_清空截止日期()
+    {
+        var repo = new TodoRepository(new DatabaseService(_dbPath));
+        repo.Add("测试任务");
+        var item = repo.Items.First();
+        var initialDate = new DateTime(2026, 9, 20);
+        repo.SetDueDate(item.Id, initialDate);
+
+        var choices = new SidebarItemViewModel[]
+        {
+            new SidebarItemViewModel(repo, SidebarKind.Uncategorized),
+        };
+        var fixedNow = new DateTime(2026, 1, 15, 10, 0, 0);
+        var vm = new TodoItemViewModel(repo, item, choices, () => fixedNow);
+
+        Assert.Equal(initialDate, vm.DueDateSelectedDate);
+
+        vm.DueDateSelectedDate = null;
+        Assert.Null(vm.DueDateSelectedDate);
+        Assert.Null(item.DueDate);
+    }
+
+    [Fact]
+    public void DueDateDisplayText与ClearCommand_测试()
+    {
+        var repo = new TodoRepository(new DatabaseService(_dbPath));
+        repo.Add("测试任务");
+        var item = repo.Items.First();
+        var choices = new SidebarItemViewModel[]
+        {
+            new SidebarItemViewModel(repo, SidebarKind.Uncategorized),
+        };
+        var fixedNow = new DateTime(2026, 1, 15, 10, 0, 0);
+        var vm = new TodoItemViewModel(repo, item, choices, () => fixedNow);
+
+        Assert.False(vm.IsDueDateSet);
+        Assert.Equal("2026-01-15", vm.DueDateDisplayText);
+
+        var date = new DateTime(2026, 9, 20);
+        vm.DueDateSelectedDate = date;
+
+        Assert.True(vm.IsDueDateSet);
+        Assert.Equal("2026-09-20", vm.DueDateDisplayText);
+
+        vm.ClearDueDateCommand.Execute(null);
+
+        Assert.False(vm.IsDueDateSet);
+        Assert.Equal("2026-01-15", vm.DueDateDisplayText);
+        Assert.Null(item.DueDate);
+    }
+
+    [Fact]
+    public void DisplayDate_按年与按月翻动命令_正常更新()
+    {
+        var repo = new TodoRepository(new DatabaseService(_dbPath));
+        repo.Add("测试任务");
+        var item = repo.Items.First();
+        var choices = new SidebarItemViewModel[]
+        {
+            new SidebarItemViewModel(repo, SidebarKind.Uncategorized),
+        };
+        var fixedNow = new DateTime(2026, 1, 15, 10, 0, 0);
+        var vm = new TodoItemViewModel(repo, item, choices, () => fixedNow);
+
+        Assert.Equal(new DateTime(2026, 1, 15), vm.DisplayDate);
+        Assert.Equal("2026年1月", vm.DisplayDateHeader);
+
+        vm.NextYearCommand.Execute(null);
+        Assert.Equal(new DateTime(2027, 1, 15), vm.DisplayDate);
+        Assert.Equal("2027年1月", vm.DisplayDateHeader);
+
+        vm.PrevYearCommand.Execute(null);
+        Assert.Equal(new DateTime(2026, 1, 15), vm.DisplayDate);
+
+        vm.NextMonthCommand.Execute(null);
+        Assert.Equal(new DateTime(2026, 2, 15), vm.DisplayDate);
+        Assert.Equal("2026年2月", vm.DisplayDateHeader);
+
+        vm.PrevMonthCommand.Execute(null);
+        Assert.Equal(new DateTime(2026, 1, 15), vm.DisplayDate);
+    }
 }

@@ -45,12 +45,23 @@
             <Setter Property="FontSize" Value="11" />
         </Style>
 
-        <!-- 截止日期输入框：无到期提示时水平居中，有提示时靠左（与提示文案左右分布） -->
-        <Style Selector="TextBox.dueInput">
+        <!-- 截止日期纯选择框按钮样式：无到期提示时水平居中，有提示时靠左 -->
+        <Style Selector="Button.dueSelect">
             <Setter Property="HorizontalAlignment" Value="Center" />
+            <Setter Property="Padding" Value="6,4" />
+            <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundAltHighBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource SystemControlForegroundBaseMediumLowBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="4" />
         </Style>
-        <Style Selector="TextBox.dueInput.hasDue">
+        <Style Selector="Button.dueSelect.hasDue">
             <Setter Property="HorizontalAlignment" Value="Left" />
+        </Style>
+        <Style Selector="TextBlock.dueSelectText">
+            <Setter Property="Foreground" Value="Gray" />
+        </Style>
+        <Style Selector="TextBlock.dueSelectText.set">
+            <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseHighBrush}" />
         </Style>
 
         <!-- 列头样式 -->
@@ -281,21 +292,71 @@
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
 
-                            <!-- 截止日期：无到期提示时输入框居中；有提示时输入框靠左、提示靠右（左右分布），错误提示在下方 -->
+                            <!-- 截止日期：无到期提示时选择框居中；有提示时选择框靠左、提示靠右（左右分布） -->
                             <Grid Grid.Column="5" Margin="0,0,4,0" VerticalAlignment="Center">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
-                                <TextBox Classes="dueInput"
-                                         Classes.hasDue="{Binding HasDueText}"
-                                         Width="106"
-                                         Text="{Binding DueDateText, Mode=TwoWay}"
-                                         Watermark="{Binding DueDatePlaceholder}"
-                                         VerticalAlignment="Center"
-                                         KeyDown="OnDueDateKeyDown"
-                                         GotFocus="OnDueDateGotFocus"
-                                         LostFocus="OnDueDateLostFocus" />
+                                <Button Classes="dueSelect"
+                                        Classes.hasDue="{Binding HasDueText}"
+                                        Width="122"
+                                        VerticalAlignment="Center"
+                                        ToolTip.Tip="点击选择截止日期">
+                                    <Button.Flyout>
+                                        <Flyout Placement="Bottom">
+                                            <StackPanel Spacing="6">
+                                                <!-- 按年翻页栏（双箭头 « / »） -->
+                                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="4,2">
+                                                    <Button Grid.Column="0"
+                                                            Content="«"
+                                                            Padding="6,2"
+                                                            FontWeight="Bold"
+                                                            ToolTip.Tip="上一年"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            Command="{Binding PrevYearCommand}" />
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="按年切换"
+                                                               Foreground="Gray"
+                                                               FontSize="11"
+                                                               HorizontalAlignment="Center"
+                                                               VerticalAlignment="Center" />
+                                                    <Button Grid.Column="2"
+                                                            Content="»"
+                                                            Padding="6,2"
+                                                            FontWeight="Bold"
+                                                            ToolTip.Tip="下一年"
+                                                            Background="Transparent"
+                                                            BorderThickness="0"
+                                                            Command="{Binding NextYearCommand}" />
+                                                </Grid>
+
+                                                <!-- 日历月历格子（含唯一一组按月翻页键与年月标题） -->
+                                                <Calendar SelectedDate="{Binding DueDateSelectedDate, Mode=TwoWay}"
+                                                          DisplayDate="{Binding DisplayDate, Mode=TwoWay}"
+                                                          DisplayDateStart="1979-01-01" />
+
+                                                <!-- 清空按钮：平时不显示，仅在用户已选择截止日期后显示 -->
+                                                <Button Content="清空截止日期"
+                                                        HorizontalAlignment="Stretch"
+                                                        HorizontalContentAlignment="Center"
+                                                        IsVisible="{Binding IsDueDateSet}"
+                                                        Command="{Binding ClearDueDateCommand}" />
+                                            </StackPanel>
+                                        </Flyout>
+                                    </Button.Flyout>
+                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="6">
+                                        <TextBlock Text="{Binding DueDateDisplayText}"
+                                                   Classes="dueSelectText"
+                                                   Classes.set="{Binding IsDueDateSet}"
+                                                   VerticalAlignment="Center" />
+                                        <TextBlock Text="🗓"
+                                                   FontSize="11"
+                                                   Foreground="Gray"
+                                                   VerticalAlignment="Center" />
+                                    </StackPanel>
+                                </Button>
                                 <TextBlock Text="{Binding DueText}"
                                            Classes="dueText"
                                            Classes.overdue="{Binding IsOverdue}"

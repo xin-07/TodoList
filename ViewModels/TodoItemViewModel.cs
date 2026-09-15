@@ -45,6 +45,8 @@ public sealed class TodoItemViewModel : ViewModelBase
     /// <summary>该行截止日期输入框当前是否聚焦（用户正在编辑）。定时器刷新时据此跳过覆盖输入内容。</summary>
     public bool IsDueDateEditing { get; set; }
 
+    private DateTime _displayDate;
+
     public TodoItemViewModel(ITodoRepository repo, TodoItem item, IReadOnlyList<SidebarItemViewModel> folderChoices,
         Func<DateTime>? nowProvider = null)
     {
@@ -55,12 +57,18 @@ public sealed class TodoItemViewModel : ViewModelBase
         _item.PropertyChanged += OnItemPropertyChanged;
         _editText = item.Title;
         _dueDateText = item.DueDate.HasValue ? DueDate.ToDisplayString(item.DueDate.Value) : "";
+        _displayDate = item.DueDate?.Date ?? _now().Date;
         RefreshDue();
 
         BeginEditCommand = new RelayCommand(_ => BeginEdit());
         SaveEditCommand = new RelayCommand(_ => CommitEdit());
         CancelEditCommand = new RelayCommand(_ => CancelEdit());
         SetDueDateCommand = new RelayCommand(_ => ApplyDueDate());
+        ClearDueDateCommand = new RelayCommand(_ => DueDateSelectedDate = null);
+        PrevYearCommand = new RelayCommand(_ => DisplayDate = DisplayDate.AddYears(-1));
+        NextYearCommand = new RelayCommand(_ => DisplayDate = DisplayDate.AddYears(1));
+        PrevMonthCommand = new RelayCommand(_ => DisplayDate = DisplayDate.AddMonths(-1));
+        NextMonthCommand = new RelayCommand(_ => DisplayDate = DisplayDate.AddMonths(1));
     }
 
     /// <summary>归属下拉选项：未归类 + 全部文件夹。未归类项 Key="none"。</summary>
@@ -176,6 +184,44 @@ public sealed class TodoItemViewModel : ViewModelBase
 
     // ---- 截止日期 ----
 
+    /// <summary>截止日期（Calendar 双向绑定，选择变更时自动写库）。</summary>
+    public DateTime? DueDateSelectedDate
+    {
+        get => _item.DueDate;
+        set
+        {
+            var dateVal = value?.Date;
+            if (_item.DueDate != dateVal)
+            {
+                _repo.SetDueDate(_item.Id, dateVal);
+                if (dateVal.HasValue)
+                    DisplayDate = dateVal.Value;
+            }
+        }
+    }
+
+    /// <summary>日历控件当前展示视角日期。</summary>
+    public DateTime DisplayDate
+    {
+        get => _displayDate;
+        set
+        {
+            if (SetProperty(ref _displayDate, value.Date))
+                OnPropertyChanged(nameof(DisplayDateHeader));
+        }
+    }
+
+    /// <summary>日历控件顶部年月标题（例如 "2026年5月"）。</summary>
+    public string DisplayDateHeader => DisplayDate.ToString("yyyy年M月");
+
+    /// <summary>截止日期选择框显示的文本：已设置显示实际日期，未设置显示占位提示。</summary>
+    public string DueDateDisplayText => _item.DueDate.HasValue
+        ? DueDate.ToDisplayString(_item.DueDate.Value)
+        : DueDatePlaceholder;
+
+    /// <summary>是否已设置截止日期（控制选择框文本样式与清空按钮可见性）。</summary>
+    public bool IsDueDateSet => _item.DueDate.HasValue;
+
     public string DueDateText
     {
         get => _dueDateText;
@@ -188,7 +234,7 @@ public sealed class TodoItemViewModel : ViewModelBase
 
     public string DueDateError { get => _dueDateError; private set => SetProperty(ref _dueDateError, value); }
 
-    /// <summary>截止日期输入框占位提示：显示当天日期作为输入模板，随每天日期更新。</summary>
+    /// <summary>截止日期控件水印提示：显示当天日期作为输入模板，随每天日期更新。</summary>
     public string DueDatePlaceholder => DueDate.ToDisplayString(_now().Date);
 
     /// <summary>到期展示文案（如"已过期""今天到期"，未设置则为空串）。</summary>
@@ -212,6 +258,11 @@ public sealed class TodoItemViewModel : ViewModelBase
     public ICommand SaveEditCommand { get; }
     public ICommand CancelEditCommand { get; }
     public ICommand SetDueDateCommand { get; }
+    public ICommand ClearDueDateCommand { get; }
+    public ICommand PrevYearCommand { get; }
+    public ICommand NextYearCommand { get; }
+    public ICommand PrevMonthCommand { get; }
+    public ICommand NextMonthCommand { get; }
 
     private void BeginEdit()
     {
@@ -289,6 +340,9 @@ public sealed class TodoItemViewModel : ViewModelBase
     /// </summary>
     public void RefreshDue()
     {
+        OnPropertyChanged(nameof(DueDateSelectedDate));
+        OnPropertyChanged(nameof(DueDateDisplayText));
+        OnPropertyChanged(nameof(IsDueDateSet));
         var due = _item.DueDate;
         if (!due.HasValue)
         {
@@ -360,6 +414,9 @@ public sealed class TodoItemViewModel : ViewModelBase
                 RefreshDue();
                 break;
             case nameof(TodoItem.DueDate):
+                OnPropertyChanged(nameof(DueDateSelectedDate));
+                OnPropertyChanged(nameof(DueDateDisplayText));
+                OnPropertyChanged(nameof(IsDueDateSet));
                 RefreshDue();
                 break;
             case nameof(TodoItem.FolderId):

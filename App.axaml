@@ -1,4 +1,4 @@
-﻿<Application xmlns="https://github.com/avaloniaui"
+<Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="TodoList.App"
              RequestedThemeVariant="Default">
@@ -7,4 +7,116 @@
     <Application.Styles>
         <FluentTheme />
     </Application.Styles>
+
+    <!--
+        重定义 CalendarItem 模板：将月份翻页箭头从上下（^/v）改为左右（</>）。
+        Path.Data 是模板本地值，无法通过外部 Style 覆盖，必须整体重定义 ControlTheme。
+        基于 Avalonia 11.3.22 FluentTheme/CalendarItem.xaml，仅修改两处 Path.Data。
+    -->
+    <Application.Resources>
+        <ControlTheme x:Key="{x:Type CalendarItem}" TargetType="CalendarItem">
+            <Setter Property="CornerRadius" Value="{DynamicResource ControlCornerRadius}" />
+            <Setter Property="DayTitleTemplate">
+                <Template x:DataType="x:String">
+                    <TextBlock Text="{Binding}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               FontSize="{DynamicResource CalendarDayButtonFontSize}" />
+                </Template>
+            </Setter>
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border BorderThickness="{TemplateBinding BorderThickness}"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            CornerRadius="{TemplateBinding CornerRadius}">
+                        <Grid VerticalAlignment="Stretch" HorizontalAlignment="Stretch"
+                              RowDefinitions="40,*" MinWidth="294">
+                            <Grid ColumnDefinitions="5*,*,*">
+                                <Button Name="PART_HeaderButton"
+                                        Theme="{StaticResource FluentCalendarButton}"
+                                        Foreground="{TemplateBinding Foreground}"
+                                        Padding="12,0,0,0"
+                                        HorizontalContentAlignment="Left" />
+                                <Button Name="PART_PreviousButton"
+                                        Grid.Column="1"
+                                        Theme="{StaticResource FluentCalendarButton}"
+                                        Foreground="{TemplateBinding Foreground}"
+                                        Padding="1"
+                                        HorizontalContentAlignment="Left">
+                                    <!-- 左箭头 < -->
+                                    <Path Stroke="{DynamicResource CalendarViewForeground}"
+                                          StrokeThickness="1.5"
+                                          Data="M 9,0 L 0,9 L 9,18"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                                </Button>
+                                <Button Name="PART_NextButton"
+                                        Grid.Column="2"
+                                        Theme="{StaticResource FluentCalendarButton}"
+                                        Foreground="{TemplateBinding Foreground}"
+                                        Padding="1"
+                                        HorizontalContentAlignment="Left">
+                                    <!-- 右箭头 > -->
+                                    <Path Stroke="{DynamicResource CalendarViewForeground}"
+                                          StrokeThickness="1.5"
+                                          Data="M 0,0 L 9,9 L 0,18"
+                                          HorizontalAlignment="Center"
+                                          VerticalAlignment="Center" />
+                                </Button>
+                            </Grid>
+                            <Border Name="BackgroundLayer"
+                                    Background="{TemplateBinding BorderBrush}"
+                                    Margin="0,38,0,0"
+                                    IsVisible="{Binding #PART_MonthView.IsVisible}"
+                                    Grid.Row="1" />
+                            <Grid Name="PART_MonthView" Grid.Row="1" IsVisible="False" MinHeight="290">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="38" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                            </Grid>
+                            <Grid Name="PART_YearView"
+                                  Background="{TemplateBinding BorderBrush}"
+                                  MinHeight="290"
+                                  Grid.Row="1"
+                                  IsVisible="False">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+            <Style Selector="^ /template/ Button:pointerover > Path">
+                <Setter Property="Stroke" Value="{DynamicResource CalendarViewNavigationButtonForegroundPointerOver}" />
+            </Style>
+            <Style Selector="^ /template/ Button:pressed > Path">
+                <Setter Property="Stroke" Value="{DynamicResource CalendarViewNavigationButtonForegroundPressed}" />
+            </Style>
+        </ControlTheme>
+    </Application.Resources>
 </Application>
