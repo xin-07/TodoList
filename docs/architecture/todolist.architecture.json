@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "TodoList 高层架构",
+    "locale": "zh-CN",
+    "quality_profile": "showcase",
+    "output": "todolist-architecture.html",
+    "repository": { "url": "https://github.com/xin-07/TodoList", "provider": "github", "link_mode": "local-only", "revision": "1ad61dc2e17a4f26c34644821d8c8fab0bbc3090" },
+    "views": [
+      { "id": "main-path", "label": "主路径：一次任务操作", "focus": ["user", "view", "vm", "repo", "dbsvc", "db"], "note": "从用户交互到 SQLite 落库，再经只读投影回流刷新界面。" },
+      { "id": "bootstrap", "label": "启动与装配", "focus": ["program", "app", "config", "vm"], "note": "Program.cs 兜底日志 → App 组合根读 config.json 解析数据路径并装配三层。" },
+      { "id": "domain", "label": "领域校验", "focus": ["models", "repo", "vm"], "note": "DueDate/TaskTitle/FolderName 集中定义格式与上限，仓库与数据库层引用。" }
+    ]
+  },
+  "components": [
+    { "id": "user", "type": "external", "label": "用户", "sublabel": "桌面交互", "pos": [40, 330], "size": [100, 64] },
+    { "id": "config", "type": "external", "label": "config.json", "sublabel": "数据路径定义", "pos": [40, 180], "size": [140, 64], "sources": [{ "path": "App.axaml.cs", "line": 43, "end_line": 73, "label": "ResolveDatabasePath()" }] },
+    { "id": "program", "type": "backend", "label": "Program.cs", "sublabel": "入口 + 崩溃日志", "pos": [210, 60], "size": [160, 64], "sources": [{ "path": "Program.cs", "line": 13, "end_line": 56 }] },
+    { "id": "app", "type": "backend", "label": "App.axaml.cs", "sublabel": "组合根（装配三层）", "pos": [440, 60], "size": [170, 64], "sources": [{ "path": "App.axaml.cs", "line": 20, "end_line": 35 }] },
+    { "id": "models", "type": "backend", "label": "Models 领域层", "sublabel": "DueDate / TaskTitle / FolderName", "pos": [700, 60], "size": [190, 64], "sources": [{ "path": "Models/DueDate.cs" }, { "path": "Models/TaskTitle.cs" }] },
+    { "id": "view", "type": "frontend", "label": "MainWindow.axaml", "sublabel": "Avalonia View（XAML 绑定）", "pos": [220, 330], "size": [160, 64], "sources": [{ "path": "MainWindow.axaml" }] },
+    { "id": "vm", "type": "backend", "label": "MainWindowViewModel", "sublabel": "过滤 / 排序 / 边栏 / 到期扫描", "pos": [480, 330], "size": [170, 64], "sources": [{ "path": "ViewModels/MainWindowViewModel.cs" }] },
+    { "id": "repo", "type": "backend", "label": "TodoRepository", "sublabel": "唯一权威源（只读投影）", "pos": [740, 330], "size": [160, 64], "tag": "先落库再投影", "sources": [{ "path": "Repositories/TodoRepository.cs", "line": 9, "end_line": 40 }] },
+    { "id": "dbsvc", "type": "backend", "label": "DatabaseService", "sublabel": "唯一接触 SQLite 的类", "pos": [980, 330], "size": [150, 64], "sources": [{ "path": "Database/DatabaseService.cs", "line": 10, "end_line": 30 }] },
+    { "id": "db", "type": "database", "label": "todo.db", "sublabel": "SQLite 数据文件", "pos": [1190, 330], "size": [130, 64], "sources": [{ "path": "Database/DatabaseService.cs", "line": 43, "end_line": 74 }] }
+  ],
+  "boundaries": [
+    { "kind": "region", "label": "TodoList.exe 桌面进程（.NET 8 / Avalonia 11.3.22）", "wraps": ["program", "app", "models", "view", "vm", "repo", "dbsvc"] },
+    { "kind": "security-group", "label": "只读投影边界：UI 仅消费 ReadOnlyObservableCollection", "wraps": ["view", "vm"] }
+  ],
+  "connections": [
+    { "id": "user-to-view", "from": "user", "to": "view", "label": "点击 / 输入", "variant": "emphasis" },
+    { "id": "view-to-vm", "from": "view", "to": "vm", "label": "数据绑定 / 命令", "variant": "emphasis" },
+    { "id": "vm-to-repo", "from": "vm", "to": "repo", "label": "增删改调用", "variant": "emphasis" },
+    { "id": "repo-to-dbsvc", "from": "repo", "to": "dbsvc", "label": "SQL 读写", "variant": "emphasis" },
+    { "id": "dbsvc-to-db", "from": "dbsvc", "to": "db", "label": "Microsoft.Data.Sqlite", "variant": "emphasis", "labelDy": 56 },
+    { "id": "program-to-app", "from": "program", "to": "app", "label": "Main() 启动" },
+    { "id": "app-to-vm", "from": "app", "to": "vm", "label": "装配 DataContext", "variant": "dashed", "fromSide": "bottom", "toSide": "top" },
+    { "id": "config-to-app", "from": "config", "to": "app", "label": "解析数据路径", "variant": "dashed" },
+    { "id": "models-to-repo", "from": "models", "to": "repo", "label": "校验 / 截断", "fromSide": "bottom", "toSide": "top" }
+  ],
+  "cards": [
+    { "dot": "cyan", "title": "主路径（一次操作）", "items": ["用户 → View → ViewModel → Repository → DatabaseService → todo.db", "写序：先落库、再更新内存只读投影，二者永远一致", "repo.Changed 事件回流，ViewModel 增量 diff 刷新列表"] },
+    { "dot": "emerald", "title": "单一权威源", "items": ["TodoRepository 是应用内唯一权威数据源（SQLite 的同步镜像）", "DatabaseService 是唯一直接访问 SQLite 的类", "Models 集中定义日期格式与标题/文件夹名上限"] },
+    { "dot": "violet", "title": "到期提醒", "items": ["DispatcherTimer 周期扫描 due_date，触发到期提示", "注入 Func<DateTime> 时钟，到期逻辑可单测", "IsDueDateEditing 守卫：不覆盖编辑中的日期输入"] },
+    { "dot": "amber", "title": "可靠性与外部依赖", "items": ["Program.cs 挂全局异常 → logs/crash-*.log；日期按 \"o\" 不变文化解析", "发布版数据落 exe 旁，旧库自动复制迁移", "Avalonia 11.3.22 + .NET 8 + Microsoft.Data.Sqlite + config.json", "TodoList.Tests（xUnit）覆盖仓库与通知回归"] }
+  ]
+}
