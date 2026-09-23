@@ -199,7 +199,7 @@
                     Padding="0,0,0,4"
                     BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
                     BorderThickness="0,0,0,1">
-                <Grid ColumnDefinitions="4,40,*,110,92,172,64">
+                <Grid ColumnDefinitions="4,40,*,110,92,196,64">
                     <Border Grid.Column="0" />
                     <TextBlock Grid.Column="1" Text="完成"
                                Classes="header" VerticalAlignment="Center" HorizontalAlignment="Center" />
@@ -221,7 +221,7 @@
                 <ItemsControl ItemsSource="{Binding DisplayItems}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:TodoItemViewModel">
-                        <Grid ColumnDefinitions="4,40,*,110,92,172,64"
+                        <Grid ColumnDefinitions="4,40,*,110,92,196,64"
                               Margin="0,3"
                               Opacity="{Binding RowOpacity}">
                             <!-- 优先级高亮条 -->
