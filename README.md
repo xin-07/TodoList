@@ -41,10 +41,10 @@ dotnet run
 powershell -ExecutionPolicy Bypass -File scripts/publish-all.ps1
 ```
 
-默认以 Release + 自包含发布 `win-x64` / `linux-x64` / `osx-arm64` 三个平台到 `dist/<rid>/`（单文件配置见 `TodoList.csproj`，仅在指定 `RuntimeIdentifier` 时生效）。单平台等效命令：
+默认以 Release + 自包含发布 `win-x64` / `linux-x64` / `osx-arm64` 三个平台到 `dist/<rid>/`（单文件配置见 `TodoList.csproj`，仅在指定 `RuntimeIdentifier` 时生效）。发布产物运行文件按 `TodoList-<rid>` 命名（如 `dist/win-x64/TodoList-win-x64.exe`），文件名本身标明目标系统与架构（由发布脚本传 `-p:AssemblyName` 实现）。单平台等效命令：
 
 ```bash
-dotnet publish -c Release -r win-x64 --self-contained true -o dist/win-x64
+dotnet publish -c Release -r win-x64 --self-contained true -p:AssemblyName=TodoList-win-x64 -o dist/win-x64
 ```
 
 ## 🖥️ 项目结构
@@ -62,14 +62,14 @@ TodoList/
 │   └── DatabaseService.cs                             # SQLite 数据访问层：负责建库建表，以及底层增删改查 SQL。
 ├── dist
 │   ├── linux-x64
-│   │   ├── TodoList
-│   │   └── TodoList.pdb
+│   │   ├── TodoList-linux-x64
+│   │   └── TodoList-linux-x64.pdb
 │   ├── osx-arm64
-│   │   ├── TodoList
-│   │   └── TodoList.pdb
+│   │   ├── TodoList-osx-arm64
+│   │   └── TodoList-osx-arm64.pdb
 │   └── win-x64
-│       ├── TodoList.exe
-│       └── TodoList.pdb
+│       ├── TodoList-win-x64.exe
+│       └── TodoList-win-x64.pdb
 ├── docs
 │   ├── rule
 │   │   └── article-05-post-change-verification.md      # 宪法 Article 5 细则：变更后验证（编译 + 单元测试）

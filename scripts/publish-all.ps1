@@ -11,6 +11,9 @@
         so end users don't need to install the .NET runtime.
       - Platform-specific values (RID list, naming) live here only; the
         main project does not hardcode any RID.
+      - The runnable artifact is named TodoList-<rid>[.exe] (e.g.
+        TodoList-win-x64.exe) so its OS and architecture are visible in
+        the file name itself.
       - Cross-platform: run via `powershell`/`powershell.exe` (Windows)
         or `pwsh` (PowerShell Core, macOS/Linux). The pre-push hook in
         .husky detects the available PowerShell automatically.
@@ -37,9 +40,16 @@ if (-not (Test-Path $Csproj)) {
 
 foreach ($rid in $Rids) {
     $out = Join-Path $ProjectRoot (Join-Path $OutputRoot $rid)
+    # Clean previous output first: with the per-RID artifact name, a stale
+    # TodoList.exe would otherwise linger next to TodoList-<rid>.exe.
+    if (Test-Path $out) {
+        Remove-Item $out -Recurse -Force
+    }
     Write-Host ""
     Write-Host "=== Publishing $rid -> $out ===" -ForegroundColor Cyan
-    dotnet publish $Csproj -c $Configuration -r $rid --self-contained $SelfContained -o $out
+    # Name the runnable after the RID (OS + architecture visible in the file name);
+    # AssemblyName keeps exe/pdb/deps/runtimeconfig names consistent in every mode.
+    dotnet publish $Csproj -c $Configuration -r $rid --self-contained $SelfContained -p:AssemblyName="TodoList-$rid" -o $out
     if ($LASTEXITCODE -ne 0) {
         Write-Host "Publishing $rid failed with exit code $LASTEXITCODE" -ForegroundColor Red
         exit $LASTEXITCODE
