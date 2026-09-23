@@ -41,7 +41,7 @@ dotnet run
 powershell -ExecutionPolicy Bypass -File scripts/publish-all.ps1
 ```
 
-默认以 Release + 自包含发布 `win-x64` / `linux-x64` / `osx-arm64` 三个平台到 `dist/<rid>/`（单文件配置见 `TodoList.csproj`，仅在指定 `RuntimeIdentifier` 时生效）。发布产物运行文件按 `TodoList-<rid>` 命名（如 `dist/win-x64/TodoList-win-x64.exe`），文件名本身标明目标系统与架构（由发布脚本传 `-p:AssemblyName` 实现）。单平台等效命令：
+默认以 Release + 自包含发布 `win-x64` / `osx-arm64` 与四个 Linux 发行版目标（`ubuntu.22.04-x64` / `debian.12-x64` / `rhel.9-x64` / `alpine.3.18-x64`）到 `dist/<rid>/`（单文件配置见 `TodoList.csproj`，仅在指定 `RuntimeIdentifier` 时生效）。.NET 8+ 的 RID 目录仅含 portable RID（发行版专属 RID 已被移除），各发行版产物由对应基线（`linux-x64` / `linux-musl-x64`）编译一次后按发行版命名复制，二进制逐字节一致且向前兼容（ubuntu.22.04 产物可运行于 Ubuntu 24.04+，alpine.3.18 产物可运行于更新版 Alpine）。发布产物运行文件按 `TodoList-<rid>` 命名（如 `dist/win-x64/TodoList-win-x64.exe`），文件名本身标明目标系统与架构。单平台等效命令：
 
 ```bash
 dotnet publish -c Release -r win-x64 --self-contained true -p:AssemblyName=TodoList-win-x64 -o dist/win-x64
@@ -61,12 +61,21 @@ TodoList/
 ├── Database                                           # SQLite 数据访问层：负责建库建表，以及底层增删改查 SQL。
 │   └── DatabaseService.cs                             # SQLite 数据访问层：负责建库建表，以及底层增删改查 SQL。
 ├── dist
-│   ├── linux-x64
-│   │   ├── TodoList-linux-x64
-│   │   └── TodoList-linux-x64.pdb
+│   ├── alpine.3.18-x64
+│   │   ├── TodoList-alpine.3.18-x64
+│   │   └── TodoList-alpine.3.18-x64.pdb
+│   ├── debian.12-x64
+│   │   ├── TodoList-debian.12-x64
+│   │   └── TodoList-debian.12-x64.pdb
 │   ├── osx-arm64
 │   │   ├── TodoList-osx-arm64
 │   │   └── TodoList-osx-arm64.pdb
+│   ├── rhel.9-x64
+│   │   ├── TodoList-rhel.9-x64
+│   │   └── TodoList-rhel.9-x64.pdb
+│   ├── ubuntu.22.04-x64
+│   │   ├── TodoList-ubuntu.22.04-x64
+│   │   └── TodoList-ubuntu.22.04-x64.pdb
 │   └── win-x64
 │       ├── TodoList-win-x64.exe
 │       └── TodoList-win-x64.pdb
