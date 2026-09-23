@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=TodoList
+Comment=轻量级待办事项管理
+Exec=todolist
+Icon=todolist
+Terminal=false
+Categories=Utility;

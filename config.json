@@ -1,6 +1,7 @@
 {
   "data": {
     "directory": "data",
-    "dbFileName": "todo.db"
+    "dbFileName": "todo.db",
+    "userDataDirectoryName": "todolist"
   }
 }

@@ -1,0 +1,3 @@
+#!/bin/sh
+# /usr/bin/todolist 启动器：程序固定装在 /opt/todolist，数据写在用户级目录（$XDG_DATA_HOME/todolist）。
+exec /opt/todolist/TodoList "$@"

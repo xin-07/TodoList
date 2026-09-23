@@ -4,6 +4,8 @@
     <OutputType>WinExe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
+    <!-- 版本号的单一权威源：Linux 安装包元数据由 scripts/package-linux.ps1 读取此值，不另行定义。 -->
+    <Version>1.0.0</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
   </PropertyGroup>

@@ -1,6 +1,5 @@
 using System;
 using System.IO;
-using System.Text.Json;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -36,38 +35,25 @@ public partial class App : Application
 
     /// <summary>
     /// 解析数据库绝对路径。
-    /// 数据目录与文件名一律读取 config.json（单一权威源）；找不到时回退默认 data/todo.db。
-    /// 开发模式（向上定位到含 *.csproj/*.slnx 的项目根）数据落在项目根；
-    /// 发布模式（单文件/不含项目根）回退到 exe 所在目录，避免把数据写进临时解压目录导致丢失。
+    /// 配置读自**程序根**（项目根 ?? exe 目录）的 config.json（单一权威源），与数据根分开计算；
+    /// 数据落点规则（开发 / 发布·Linux / 发布·Windows·macOS）由 <see cref="DataPaths"/> 权威定义。
     /// </summary>
     private static string ResolveDatabasePath()
     {
-        const string DefaultDir = "data";
-        const string DefaultFile = "todo.db";
-        var dataDir = DefaultDir;
-        var dbFileName = DefaultFile;
-
         var projectRoot = TryFindProjectRoot();
-        var dataRoot = projectRoot ?? ResolveExecutableDirectory();
+        var programRoot = projectRoot ?? ResolveExecutableDirectory();
+        var settings = DataPaths.ReadDataSettings(programRoot);
 
-        // config.json 含数据目录定义；发布版通常不带，顺带旁读若无则用默认。
-        var configPath = Path.Combine(dataRoot, "config.json");
-        if (File.Exists(configPath))
-        {
-            using var doc = JsonDocument.Parse(File.ReadAllText(configPath));
-            if (doc.RootElement.TryGetProperty("data", out var data))
-            {
-                if (data.TryGetProperty("directory", out var dir) && dir.ValueKind == JsonValueKind.String)
-                    dataDir = dir.GetString() ?? DefaultDir;
-                if (data.TryGetProperty("dbFileName", out var file) && file.ValueKind == JsonValueKind.String)
-                    dbFileName = file.GetString() ?? DefaultFile;
-            }
-        }
-
-        var dbPath = Path.Combine(dataRoot, dataDir, dbFileName);
+        var dbPath = DataPaths.ResolveDatabasePath(
+            programRoot,
+            isDevelopment: projectRoot is not null,
+            platform: DataPaths.DetectHostPlatform(),
+            xdgDataHome: Environment.GetEnvironmentVariable("XDG_DATA_HOME"),
+            homeDirectory: Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            settings: settings);
 
         // 旧数据迁移：目标库不存在、且旧回退位置存在时，复制旧库到稳定路径（保留原文件，可回滚）。
-        MigrateLegacyDatabase(dbPath, dataDir, dbFileName);
+        MigrateLegacyDatabase(dbPath, settings.Directory, settings.DbFileName);
 
         return dbPath;
     }

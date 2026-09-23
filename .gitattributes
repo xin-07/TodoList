@@ -1,3 +1,5 @@
 # 强制 husky 钩子以 LF 检出，避免 autocrlf 转成 CRLF 破坏 shell 脚本的 shebang 与执行。
 .husky/** text eol=lf
 *.sh text eol=lf
+# 打包资产（启动器脚本、桌面入口、Dockerfile）必须以 LF 检出：CRLF 会让容器内 /bin/sh 与桌面项解析失败。
+packaging/** text eol=lf
