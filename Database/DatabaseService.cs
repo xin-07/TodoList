@@ -141,14 +141,16 @@ public class DatabaseService
         return DateTime.Parse(raw);
     }
 
-    public void Insert(string id, string title, DateTime createdAt)
+    /// <summary>新增任务。folderId 随插入一次写入，传 null 表示未归类。</summary>
+    public void Insert(string id, string title, DateTime createdAt, string? folderId)
     {
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "INSERT INTO tasks (id, title, is_completed, created_at, priority, due_date) VALUES ($id, $title, 0, $created_at, 'None', NULL);";
+        cmd.CommandText = "INSERT INTO tasks (id, title, is_completed, created_at, priority, due_date, folder_id) VALUES ($id, $title, 0, $created_at, 'None', NULL, $folder_id);";
         cmd.Parameters.AddWithValue("$id", id);
         cmd.Parameters.AddWithValue("$title", title);
         cmd.Parameters.AddWithValue("$created_at", createdAt.ToString("o"));
+        cmd.Parameters.AddWithValue("$folder_id", (object?)folderId ?? DBNull.Value);
         cmd.ExecuteNonQuery();
     }
 

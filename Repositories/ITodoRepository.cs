@@ -19,8 +19,8 @@ public interface ITodoRepository
     /// <summary>增删改发生后触发，供 ViewModel 刷新统计等派生数据。</summary>
     event Action? Changed;
 
-    /// <summary>新增一条任务。返回是否成功（空白/超长标题会被拒绝）。</summary>
-    bool Add(string title);
+    /// <summary>新增一条任务；folderId 传 null 表示未归类。返回是否成功（空白/超长标题会被拒绝）。</summary>
+    bool Add(string title, string? folderId = null);
 
     /// <summary>重命名一条任务的标题。返回是否成功（标题不存在或非法时返回 false）。</summary>
     bool Rename(string id, string title);

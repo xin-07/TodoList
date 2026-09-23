@@ -278,6 +278,35 @@ public class TodoRepositoryTests : IDisposable
     }
 
     [Fact]
+    public void Add_带归属_随插入一次落库_重开保留()
+    {
+        var first = NewRepository();
+        first.AddFolder("工作");
+        var folderId = first.Folders.Single().Id;
+
+        Assert.True(first.Add("买菜", folderId));
+
+        // 投影与权威源一致（一次 INSERT 即带归属）。
+        Assert.Equal(folderId, first.Items.Single().FolderId);
+        Assert.Equal(folderId, new DatabaseService(_dbPath).LoadAll().Single().FolderId);
+
+        // 重开仓库，归属从权威源加载回。
+        var reopened = NewRepository();
+        Assert.Equal(folderId, reopened.Items.Single().FolderId);
+    }
+
+    [Fact]
+    public void Add_不传归属_默认未归类()
+    {
+        var repo = NewRepository();
+
+        Assert.True(repo.Add("买菜"));
+
+        Assert.Null(repo.Items.Single().FolderId);
+        Assert.Null(new DatabaseService(_dbPath).LoadAll().Single().FolderId);
+    }
+
+    [Fact]
     public void DeleteFolder_连同内条目一并删除_并返回条目数()
     {
         var repo = NewRepository();

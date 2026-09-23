@@ -39,7 +39,7 @@ public class TodoRepository : ITodoRepository
 
     public event Action? Changed;
 
-    public bool Add(string title)
+    public bool Add(string title, string? folderId = null)
     {
         var error = TaskTitle.Validate(title);
         if (error is not null)
@@ -51,10 +51,11 @@ public class TodoRepository : ITodoRepository
             Id = Guid.NewGuid().ToString(),
             Title = normalized,
             CreatedAt = DateTime.Now,
+            FolderId = folderId,
         };
 
-        // 先写权威源，再同步投影。
-        _db.Insert(item.Id, item.Title, item.CreatedAt);
+        // 先写权威源（归属随插入一次落库），再同步投影。
+        _db.Insert(item.Id, item.Title, item.CreatedAt, folderId);
         _items.Add(item);
 
         Changed?.Invoke();

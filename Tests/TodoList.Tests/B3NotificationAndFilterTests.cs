@@ -108,4 +108,45 @@ public class B3NotificationAndFilterTests : IDisposable
         Assert.True(notified > 0, "重建归属选项后未发出 SelectedFolder 变更通知");
         Assert.Equal("工作", row.SelectedFolder.Name);
     }
+
+    [Fact]
+    public void AddTask_选中文件夹时_新任务归入该文件夹并进入该视图()
+    {
+        var repo = NewRepository();
+        repo.AddFolder("工作");
+        var folderId = repo.Folders.Single().Id;
+
+        var vm = new MainWindowViewModel(repo);
+        vm.SelectedSidebar = vm.SidebarItems.First(i => i.Key == folderId);
+        vm.NewTaskTitle = "买菜";
+        vm.AddTaskCommand.Execute(null);
+
+        // 落库归属为该文件夹，并立即出现在当前（该文件夹）视图。
+        Assert.Equal(folderId, repo.Items.Single().FolderId);
+        Assert.Equal("买菜", Assert.Single(vm.DisplayItems).Title);
+
+        // 切到"未归类"视图：不属于未归类，不应出现。
+        vm.SelectedSidebar = vm.SidebarItems.First(i => i.Key == MainWindowViewModel.KeyUncategorized);
+        Assert.Empty(vm.DisplayItems);
+    }
+
+    [Fact]
+    public void AddTask_选中全部或未归类时_新任务为未归类()
+    {
+        var repo = NewRepository();
+        var vm = new MainWindowViewModel(repo);
+
+        // 默认选中"全部任务"。
+        vm.NewTaskTitle = "任务A";
+        vm.AddTaskCommand.Execute(null);
+
+        // 切到"未归类"再新建。
+        vm.SelectedSidebar = vm.SidebarItems.First(i => i.Key == MainWindowViewModel.KeyUncategorized);
+        vm.NewTaskTitle = "任务B";
+        vm.AddTaskCommand.Execute(null);
+
+        // 两条均为未归类，故在"未归类"视图下都可见。
+        Assert.All(repo.Items, t => Assert.Null(t.FolderId));
+        Assert.Equal(2, vm.DisplayItems.Count);
+    }
 }

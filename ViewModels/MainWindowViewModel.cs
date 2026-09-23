@@ -212,7 +212,9 @@ public class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        _repo.Add(NewTaskTitle!.Trim());
+        // 归属：边栏选中具体文件夹时归入该文件夹；"全部任务/未归类"视作未选择，归入未归类。
+        var folderId = SelectedSidebar?.Kind == SidebarKind.Folder ? SelectedSidebar.Key : null;
+        _repo.Add(NewTaskTitle!.Trim(), folderId);
         NewTaskTitle = "";
         AddError = "";
     }
