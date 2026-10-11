@@ -193,13 +193,28 @@
                        Foreground="Gray"
                        Text="{Binding StatsText}" />
 
-            <!-- 中部：列对齐的表头 -->
+            <!-- 中部：列对齐的表头
+                 Width 绑定列表滚动区的实际内容宽度（Extent.Width = 视口宽 - 竖向滚动条宽），
+                 使表头与列表行共用同一套列宽；否则列表出现滚动条时比例列会整体错位。
+                 MinWidth 仅作为绑定尚未求值时的兜底下限，正常窗口宽度下不会生效。 -->
             <Border DockPanel.Dock="Top"
                     Margin="0,0,0,6"
                     Padding="0,0,0,4"
+                    MinWidth="200"
+                    Width="{Binding #TaskListScroll.Extent.Width}"
                     BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
                     BorderThickness="0,0,0,1">
-                <Grid ColumnDefinitions="4,40,*,110,92,196,64">
+                <!-- 列定义必须与下方任务行 Grid 保持一致：比例列随窗口宽度伸缩，MinWidth 是控件可读性下限 -->
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="4" />
+                        <ColumnDefinition Width="40" />
+                        <ColumnDefinition Width="2*" MinWidth="60" />
+                        <ColumnDefinition Width="1.4*" MinWidth="84" />
+                        <ColumnDefinition Width="1*" MinWidth="60" />
+                        <ColumnDefinition Width="1.6*" MinWidth="118" />
+                        <ColumnDefinition Width="0.6*" MinWidth="56" />
+                    </Grid.ColumnDefinitions>
                     <Border Grid.Column="0" />
                     <TextBlock Grid.Column="1" Text="完成"
                                Classes="header" VerticalAlignment="Center" HorizontalAlignment="Center" />
@@ -217,13 +232,22 @@
             </Border>
 
             <!-- 中部：任务列表（网格化行，列与表头对齐；内容超出窗口高度时上下滚动） -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ScrollViewer x:Name="TaskListScroll" VerticalScrollBarVisibility="Auto">
                 <ItemsControl ItemsSource="{Binding DisplayItems}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:TodoItemViewModel">
-                        <Grid ColumnDefinitions="4,40,*,110,92,196,64"
-                              Margin="0,3"
+                        <!-- 列定义必须与上方表头 Grid 保持一致 -->
+                        <Grid Margin="0,3"
                               Opacity="{Binding RowOpacity}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="4" />
+                                <ColumnDefinition Width="40" />
+                                <ColumnDefinition Width="2*" MinWidth="60" />
+                                <ColumnDefinition Width="1.4*" MinWidth="84" />
+                                <ColumnDefinition Width="1*" MinWidth="60" />
+                                <ColumnDefinition Width="1.6*" MinWidth="118" />
+                                <ColumnDefinition Width="0.6*" MinWidth="56" />
+                            </Grid.ColumnDefinitions>
                             <!-- 优先级高亮条 -->
                             <Border Grid.Column="0"
                                     Classes="priBar"
@@ -244,10 +268,13 @@
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
-                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                <!-- 展示/编辑二选一：用 Panel 而非水平 StackPanel，
+                                     StackPanel 会给子元素无限宽度，导致标题永不换行。 -->
+                                <Panel>
                                     <TextBlock Text="{Binding Title}"
                                                Background="Transparent"
                                                Focusable="True"
+                                               TextWrapping="Wrap"
                                                VerticalAlignment="Center"
                                                IsVisible="{Binding IsNotEditing}"
                                                DoubleTapped="OnTitleDoubleTapped"
@@ -257,23 +284,26 @@
                                              IsVisible="{Binding IsEditing}"
                                              KeyDown="OnEditKeyDown"
                                              LostFocus="OnEditLostFocus" />
-                                </StackPanel>
+                                </Panel>
                                 <TextBlock Grid.Row="1"
                                            Text="{Binding EditError}"
                                            Classes="error"
                                            IsVisible="{Binding EditError, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
                             </Grid>
 
-                            <!-- 文件夹：归属下拉 -->
+                            <!-- 文件夹：归属下拉。列宽随窗口伸缩；超长文件夹名显示省略号，悬停显示全名 -->
                             <ComboBox Grid.Column="3"
                                       Margin="0,0,8,0"
                                       HorizontalAlignment="Stretch"
                                       VerticalAlignment="Center"
+                                      ToolTip.Tip="{Binding SelectedFolder.Name}"
                                       ItemsSource="{Binding FolderChoices}"
                                       SelectedItem="{Binding SelectedFolder}">
                                 <ComboBox.ItemTemplate>
                                     <DataTemplate x:DataType="vm:SidebarItemViewModel">
-                                        <TextBlock Text="{Binding Name}" />
+                                        <TextBlock Text="{Binding Name}"
+                                                   TextTrimming="CharacterEllipsis"
+                                                   ToolTip.Tip="{Binding Name}" />
                                     </DataTemplate>
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
@@ -300,7 +330,7 @@
                                 </Grid.RowDefinitions>
                                 <Button Classes="dueSelect"
                                         Classes.hasDue="{Binding HasDueText}"
-                                        Width="122"
+                                        MinWidth="110"
                                         VerticalAlignment="Center"
                                         ToolTip.Tip="点击选择截止日期">
                                     <Button.Flyout>
