@@ -7,7 +7,10 @@
       powershell -ExecutionPolicy Bypass -File scripts/publish-all.ps1 -Configuration Debug -SelfContained:$false
 
     Notes:
-      - Default RIDs: win-x64 / osx-arm64，自包含单文件，终端用户无需安装 .NET 运行时。
+      - Default RIDs: win-x64，自包含单文件，终端用户无需安装 .NET 运行时。
+      - macOS 不在默认列表：出正式可用的 mac 产物需要 codesign 签名 + notarization 公证，
+        这两步只能在 macOS 上完成，本机（Windows）无法代劳，故不纳入默认发布。
+        确需 mac 产物时显式传入：-Rids osx-arm64（首次打开会被 Gatekeeper 拦，属预期）。
       - Linux 不在此产出：Linux 由 scripts/package-linux.ps1 生成 deb / rpm / apk 原生安装包，
         发行版 -> 编译基线的映射只存在于那个脚本里（此处不再重复定义）。
         仍需要通用 Linux 便携产物时显式传入：-Rids linux-x64（glibc）或 linux-musl-x64（musl）。
@@ -21,10 +24,10 @@
 [CmdletBinding()]
 param(
     # Target platforms to publish; override with any portable RID
-    # (e.g. -Rids linux-x64 for a generic glibc portable build)
+    # (e.g. -Rids linux-x64 for a generic glibc portable build).
+    # macOS 需签名+公证且只能在 mac 上完成，不进默认列表；需要时传 -Rids osx-arm64。
     [string[]]$Rids = @(
-        'win-x64',
-        'osx-arm64'
+        'win-x64'
     ),
     # Self-contained by default: users don't need the runtime installed
     [switch]$SelfContained = $true,

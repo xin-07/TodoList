@@ -27,7 +27,7 @@
 | D4 | 包粒度 | 按发行版出 **4 个**包，各自声明该发行版真实存在的依赖版本 |
 | D5 | 数据目录 | Linux 安装版数据落用户级目录：`$XDG_DATA_HOME/todolist`（缺省 `~/.local/share/todolist`）；Windows / macOS 保持 exe 同目录不变 |
 | D6 | 包维护者 / 许可证 | `--maintainer "xin-07 <2074835619@qq.com>"`（用户提供邮箱，名称取仓库账号）、`--license Proprietary` |
-| D7 | publish-all.ps1 | 同意收敛：默认 RID 只保留 `win-x64` / `osx-arm64` |
+| D7 | publish-all.ps1 | 同意收敛：默认 RID 只保留 `win-x64` / `osx-arm64`（**已于 2026-10-11 修订**，见 §10） |
 
 ## 3. 目标与非目标
 
@@ -223,3 +223,11 @@ Linux 下用户级数据根本身即应用专属目录，不再追加 `data/` �
 - **体积**：单文件自包含产物较大（数十 MB），安装包体积随之；不因此引入框架依赖发布。
 - **依赖集准确性**：§4.4 必须经 T6 实测校正，未校正前不视为完成。
 - **Alpine 无桌面环境**：Alpine 安装包面向已装 X11 的场景，纯服务器环境无法运行 GUI，属预期。
+
+## 10. 修订记录
+
+| 日期 | 被修订项 | 原结论 | 新结论 | 原因（根因） | 获批 |
+|---|---|---|---|---|---|
+| 2026-10-11 | D7、§4.6、§5「代码与文件改动清单」中 `publish-all.ps1` 一行 | 默认 RID 为 `win-x64` / `osx-arm64` | 默认 RID **只保留 `win-x64`**；`osx-arm64` 改为需显式传 `-Rids osx-arm64` 才产出 | design flaw —— macOS 产物要真正可用必须经 codesign 签名 + notarization 公证，两步只能在 macOS 上完成，本机（Windows）无法代劳；不签名的 mac 产物首次打开即被 Gatekeeper 拦截，等于没有可用交付物，却每次 push 都付出约 40MB 与数十秒构建成本 | 用户明确要求「停止对 Mac 的安装包构建」 |
+
+`-Rids` 覆盖能力保留不变（需要 mac / Linux 便携产物时仍可显式传入），RID 清单的权威源仍是 `scripts/publish-all.ps1` 一处。

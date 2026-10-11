@@ -41,7 +41,7 @@ dotnet run
 powershell -ExecutionPolicy Bypass -File scripts/publish-all.ps1
 ```
 
-默认以 Release + 自包含发布 `win-x64` / `osx-arm64` 到 `dist/<rid>/`（单文件配置见 `TodoList.csproj`，仅在指定 `RuntimeIdentifier` 时生效）。发布产物运行文件按 `TodoList-<rid>` 命名（如 `dist/win-x64/TodoList-win-x64.exe`），文件名本身标明目标系统与架构。需要通用 Linux 便携产物时显式传入 `-Rids linux-x64`（glibc）或 `-Rids linux-musl-x64`（musl）。单平台等效命令：
+默认以 Release + 自包含发布 `win-x64` 到 `dist/<rid>/`（单文件配置见 `TodoList.csproj`，仅在指定 `RuntimeIdentifier` 时生效）。发布产物运行文件按 `TodoList-<rid>` 命名（如 `dist/win-x64/TodoList-win-x64.exe`），文件名本身标明目标系统与架构。macOS 不在默认列表（出正式可用的 mac 产物需 codesign 签名 + notarization 公证，两步都只能在 macOS 上完成），确需时显式传入 `-Rids osx-arm64`；通用 Linux 便携产物同理传 `-Rids linux-x64`（glibc）或 `-Rids linux-musl-x64`（musl）。单平台等效命令：
 
 ```bash
 dotnet publish -c Release -r win-x64 --self-contained true -p:AssemblyName=TodoList-win-x64 -o dist/win-x64
@@ -103,9 +103,6 @@ TodoList/
 │   │   │   └── TodoList-rhel.9-x64-1.0.0-1.x86_64.rpm
 │   │   └── ubuntu.22.04-x64
 │   │       └── TodoList-ubuntu.22.04-x64_1.0.0_amd64.deb
-│   ├── osx-arm64
-│   │   ├── TodoList-osx-arm64
-│   │   └── TodoList-osx-arm64.pdb
 │   └── win-x64
 │       ├── TodoList-win-x64.exe
 │       └── TodoList-win-x64.pdb
@@ -140,7 +137,7 @@ TodoList/
 ├── scripts
 │   ├── check-commit-msg.js
 │   ├── package-linux.ps1                              # Docker + fpm 生成四发行版原生安装包；目标矩阵/依赖集/包元数据唯一权威源。
-│   └── publish-all.ps1                                # 发布便携自包含单文件（win-x64 / osx-arm64），pre-push 会执行。
+│   └── publish-all.ps1                                # 发布便携自包含单文件（默认 win-x64），pre-push 会执行。
 ├── Tests                                              # 测试项目：仓库集成测试 + VM 单测 + 路径解析单测。
 │   └── TodoList.Tests
 │       ├── B3NotificationAndFilterTests.cs            # 通知属性与增量过滤回归用例。
