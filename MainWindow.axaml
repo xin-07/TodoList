@@ -12,6 +12,7 @@
         Title="TodoList"
         Icon="/Assets/app.ico"
         Width="760" Height="440"
+        MinWidth="740"
         WindowStartupLocation="CenterScreen">
 
     <Window.Styles>
@@ -27,6 +28,14 @@
         </Style>
         <Style Selector="Border.priBar.none">
             <Setter Property="Background" Value="Transparent" />
+        </Style>
+
+        <!-- 截止日期到期提示：与上方选择框同对齐（选择框居中则提示居中，靠左则靠左） -->
+        <Style Selector="TextBlock.dueText">
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+        <Style Selector="TextBlock.dueText.hasDue">
+            <Setter Property="HorizontalAlignment" Value="Left" />
         </Style>
 
         <!-- 截止日期到期高亮 -->
@@ -204,14 +213,16 @@
                     Width="{Binding #TaskListScroll.Extent.Width}"
                     BorderBrush="{DynamicResource SystemControlForegroundBaseMediumBrush}"
                     BorderThickness="0,0,0,1">
-                <!-- 列定义必须与下方任务行 Grid 保持一致：比例列随窗口宽度伸缩，MinWidth 是控件可读性下限 -->
+                <!-- 列定义必须与下方任务行 Grid 保持一致：比例列随窗口宽度伸缩，MinWidth 是控件可读性下限。
+                     下限合计 = 4(高亮条)+40(勾选)+80+96+76+118+56 = 470px，加上侧栏与外边距 222px，
+                     得出窗口 MinWidth=740；调整任一 MinWidth 时必须同步复核窗口下限，否则窄窗口会再次溢出裁剪。 -->
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="4" />
                         <ColumnDefinition Width="40" />
-                        <ColumnDefinition Width="2*" MinWidth="60" />
-                        <ColumnDefinition Width="1.4*" MinWidth="84" />
-                        <ColumnDefinition Width="1*" MinWidth="60" />
+                        <ColumnDefinition Width="2*" MinWidth="80" />
+                        <ColumnDefinition Width="1.4*" MinWidth="96" />
+                        <ColumnDefinition Width="1*" MinWidth="76" />
                         <ColumnDefinition Width="1.6*" MinWidth="118" />
                         <ColumnDefinition Width="0.6*" MinWidth="56" />
                     </Grid.ColumnDefinitions>
@@ -242,9 +253,9 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="4" />
                                 <ColumnDefinition Width="40" />
-                                <ColumnDefinition Width="2*" MinWidth="60" />
-                                <ColumnDefinition Width="1.4*" MinWidth="84" />
-                                <ColumnDefinition Width="1*" MinWidth="60" />
+                                <ColumnDefinition Width="2*" MinWidth="80" />
+                                <ColumnDefinition Width="1.4*" MinWidth="96" />
+                                <ColumnDefinition Width="1*" MinWidth="76" />
                                 <ColumnDefinition Width="1.6*" MinWidth="118" />
                                 <ColumnDefinition Width="0.6*" MinWidth="56" />
                             </Grid.ColumnDefinitions>
@@ -322,9 +333,11 @@
                                 </ComboBox.ItemTemplate>
                             </ComboBox>
 
-                            <!-- 截止日期：无到期提示时选择框居中；有提示时选择框靠左、提示靠右（左右分布） -->
+                            <!-- 截止日期：到期提示固定放在选择框正下方（上下两行），
+                                 避免左右分布时窄列下右对齐提示向左溢出、压到选择框上 -->
                             <Grid Grid.Column="5" Margin="0,0,4,0" VerticalAlignment="Center">
                                 <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
@@ -387,14 +400,14 @@
                                                    VerticalAlignment="Center" />
                                     </StackPanel>
                                 </Button>
-                                <TextBlock Text="{Binding DueText}"
+                                <TextBlock Grid.Row="1"
+                                           Text="{Binding DueText}"
                                            Classes="dueText"
+                                           Classes.hasDue="{Binding HasDueText}"
                                            Classes.overdue="{Binding IsOverdue}"
                                            Classes.dueToday="{Binding IsDueToday}"
-                                           HorizontalAlignment="Right"
-                                           VerticalAlignment="Center"
                                            IsVisible="{Binding DueText, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
-                                <TextBlock Grid.Row="1"
+                                <TextBlock Grid.Row="2"
                                            Text="{Binding DueDateError}"
                                            Classes="error"
                                            IsVisible="{Binding DueDateError, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
