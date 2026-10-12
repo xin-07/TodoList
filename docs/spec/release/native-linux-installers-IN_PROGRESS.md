@@ -206,7 +206,7 @@ Linux 下用户级数据根本身即应用专属目录，不再追加 `data/` �
 - [x] Alpine 3.18 容器（`apk add --allow-untrusted`）：26 个依赖解析通过、`apk del todolist` 干净卸载。
 - [x] `publish-all.ps1` 收敛后仍正常产出 `win-x64`（91.8MB exe）与 `osx-arm64`（100.5MB）。
 - [ ] 用户实机测试：安装后在桌面环境启动应用、新增任务、确认数据写入 `~/.local/share/todolist/todo.db` 并重启后仍存在。
-- [ ] 用户实机测试：Windows 版行为与改动前一致（`<exeDir>/data/todo.db`）。
+- [x] 用户实机测试：Windows 版行为与改动前一致（`<exeDir>/data/todo.db`，用户已确认）。
 - [x] README 与脚本头注释已同步。
 
 > 待用户实机验证完成后，本 SPEC 改名 `-DONE`。
