@@ -20,7 +20,7 @@
 param(
     # 目标发行版；可只打其中几个
     [string[]]$Targets = @(
-        'ubuntu.22.04-x64', 'debian.12-x64', 'rhel.9-x64', 'alpine.3.18-x64'
+        'ubuntu.22.04-x64', 'debian.12-x64', 'rhel.9-x64', 'fedora.44-x64', 'alpine.3.18-x64'
     ),
     [string]$Configuration = 'Release',
     [string]$OutputRoot = 'dist'
@@ -79,6 +79,7 @@ $TargetMatrix = @(
     @{ Name = 'ubuntu.22.04-x64'; Format = 'deb'; Baseline = 'linux-x64'; Arch = 'amd64'; Iteration = '1'; Deps = @('libicu70') + $CommonDebDeps },
     @{ Name = 'debian.12-x64'; Format = 'deb'; Baseline = 'linux-x64'; Arch = 'amd64'; Iteration = '1'; Deps = @('libicu72') + $CommonDebDeps },
     @{ Name = 'rhel.9-x64'; Format = 'rpm'; Baseline = 'linux-x64'; Arch = 'x86_64'; Iteration = '1'; Deps = @('libicu') + $CommonRpmDeps },
+    @{ Name = 'fedora.44-x64'; Format = 'rpm'; Baseline = 'linux-x64'; Arch = 'x86_64'; Iteration = '1'; Deps = @('libicu') + $CommonRpmDeps },
     @{ Name = 'alpine.3.18-x64'; Format = 'apk'; Baseline = 'linux-musl-x64'; Arch = 'x86_64'; Iteration = '0'; Deps = @('icu-libs') + $CommonApkDeps }
 )
 

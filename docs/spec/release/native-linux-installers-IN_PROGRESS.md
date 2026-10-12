@@ -21,10 +21,10 @@
 
 | # | 决策 | 结论 |
 |---|---|---|
-| D1 | 安装包范围 | 仅 Linux 四发行版：`ubuntu.22.04`(.deb)、`debian.12`(.deb)、`rhel.9`(.rpm)、`alpine.3.18`(.apk) |
+| D1 | 安装包范围 | 仅 Linux 四发行版：`ubuntu.22.04`(.deb)、`debian.12`(.deb)、`rhel.9`(.rpm)、`alpine.3.18`(.apk)（**已于 2026-10-11 修订**，新增 `fedora.44`(.rpm)，见 §10） |
 | D2 | Windows / macOS | 本次**不出**安装包：Windows 保持自包含单文件 exe，macOS 保持现状（pkg/dmg 无法在 Windows 生成） |
 | D3 | 打包工具链 | Docker + fpm（本机已装 Docker Desktop，当前**未启动**）；不引入 WiX |
-| D4 | 包粒度 | 按发行版出 **4 个**包，各自声明该发行版真实存在的依赖版本 |
+| D4 | 包粒度 | 按发行版出 **5 个**包，各自声明该发行版真实存在的依赖版本 |
 | D5 | 数据目录 | Linux 安装版数据落用户级目录：`$XDG_DATA_HOME/todolist`（缺省 `~/.local/share/todolist`）；Windows / macOS 保持 exe 同目录不变 |
 | D6 | 包维护者 / 许可证 | `--maintainer "xin-07 <2074835619@qq.com>"`（用户提供邮箱，名称取仓库账号）、`--license Proprietary` |
 | D7 | publish-all.ps1 | 同意收敛：默认 RID 只保留 `win-x64` / `osx-arm64`（**已于 2026-10-11 修订**，见 §10） |
@@ -33,7 +33,7 @@
 
 **目标**
 
-- 4 个发行版各自产出可被原生包管理器安装/卸载的安装包，含应用菜单入口与图标。
+- 5 个发行版各自产出可被原生包管理器安装/卸载的安装包，含应用菜单入口与图标。
 - 打包元数据（版本、依赖、安装路径）**单一权威源**，不重复定义。
 - Linux 安装版数据落到用户可写目录，安装目录只读也能正常保存数据。
 
@@ -52,11 +52,12 @@
 | ubuntu.22.04-x64 | deb | linux-x64 | `TodoList-ubuntu.22.04-x64_<ver>_amd64.deb` | amd64 |
 | debian.12-x64 | deb | linux-x64 | `TodoList-debian.12-x64_<ver>_amd64.deb` | amd64 |
 | rhel.9-x64 | rpm | linux-x64 | `TodoList-rhel.9-x64-<ver>-1.x86_64.rpm` | x86_64 |
+| fedora.44-x64 | rpm | linux-x64 | `TodoList-fedora.44-x64-<ver>-1.x86_64.rpm` | x86_64 |
 | alpine.3.18-x64 | apk | linux-musl-x64 | `TodoList-alpine.3.18-x64-<ver>-r0.apk` | x86_64 |
 
 产物落 `dist/linux/<目标>/`；Windows/macOS 仍为 `dist/win-x64/`、`dist/osx-arm64/`。
 
-> 说明：包名（包管理器可见名）四者统一为 `todolist`，因此 `dpkg -r todolist` / `dnf remove todolist` / `apk del todolist` 通用；发行版标识只出现在**文件名**上（复用现有"文件名标明目标系统"的约定）。
+> 说明：包名（包管理器可见名）五者统一为 `todolist`，因此 `dpkg -r todolist` / `dnf remove todolist` / `apk del todolist` 通用；发行版标识只出现在**文件名**上（复用现有"文件名标明目标系统"的约定）。
 
 ### 4.2 包元数据与命名（单一权威源，Article 9）
 
@@ -86,15 +87,15 @@
 
 自包含发布**不需要 .NET 运行时**，但仍依赖系统 ICU / X11 / C++ 运行库（Avalonia 的 X11 后端为运行时 `dlopen`，`ldd` 不可见，必须显式声明）：
 
-| 角色 | Ubuntu 22.04 | Debian 12 | RHEL 9 | Alpine 3.18 |
-|---|---|---|---|---|
-| ICU（.NET 全球化） | libicu70 | libicu72 | libicu | icu-libs |
-| C++/压缩 | libstdc++6、zlib1g | libstdc++6、zlib1g | libstdc++、zlib | libstdc++、zlib |
-| X11 基础 | libx11-6、libxext6、libxrender1 | libx11-6、libxext6、libxrender1 | libX11、libXext、libXrender | libx11、libxext、libxrender |
-| X11 扩展 | libxrandr2、libxi6、libxcursor1 | libxrandr2、libxi6、libxcursor1 | libXrandr、libXi、libXcursor | libxrandr、libxi、libxcursor |
-| 会话/字体 | libice6、libsm6、libfontconfig1、libfreetype6 | libice6、libsm6、libfontconfig1、libfreetype6 | libICE、libSM、fontconfig、freetype | libice、libsm、fontconfig、freetype |
+| 角色 | Ubuntu 22.04 | Debian 12 | RHEL 9 | Fedora 44 | Alpine 3.18 |
+|---|---|---|---|---|---|
+| ICU（.NET 全球化） | libicu70 | libicu72 | libicu | libicu | icu-libs |
+| C++/压缩 | libstdc++6、zlib1g | libstdc++6、zlib1g | libstdc++、zlib | libstdc++、zlib | libstdc++、zlib |
+| X11 基础 | libx11-6、libxext6、libxrender1 | libx11-6、libxext6、libxrender1 | libX11、libXext、libXrender | libX11、libXext、libXrender | libx11、libxext、libxrender |
+| X11 扩展 | libxrandr2、libxi6、libxcursor1 | libxrandr2、libxi6、libxcursor1 | libXrandr、libXi、libXcursor | libXrandr、libXi、libXcursor | libxrandr、libxi、libxcursor |
+| 会话/字体 | libice6、libsm6、libfontconfig1、libfreetype6 | libice6、libsm6、libfontconfig1、libfreetype6 | libICE、libSM、fontconfig、freetype | libICE、libSM、fontconfig、freetype | libice、libsm、fontconfig、freetype |
 
-> 依赖集已在四个发行版容器内实测校正（T6）：Ubuntu 22.04 与 Debian 12 由 `apt-get install` 全量解析（含 libicu70 / libicu72）、RHEL 9 由 `dnf install` 解析、Alpine 3.18 由 `apk add` 解析 26 个包，`ldd` 均无 `not found`，四者均无多余或缺失依赖，故上表即为最终依赖集。
+> 依赖集已在五个发行版容器内实测校正（T6）：Ubuntu 22.04 与 Debian 12 由 `apt-get install` 全量解析（含 libicu70 / libicu72）、RHEL 9 与 Fedora 44 由 `dnf install` 解析（各安装 25 个包，`libicu` 分别解析到 77.1-3.fc44 等发行版自有版本）、Alpine 3.18 由 `apk add` 解析 26 个包，`ldd` 均无 `not found`，五者均无多余或缺失依赖，故上表即为最终依赖集。
 
 ### 4.5 数据目录契约变更（Article 7 显式契约修订）
 
@@ -160,7 +161,7 @@ Linux 下用户级数据根本身即应用专属目录，不再追加 `data/` �
 
 **pre-push 影响**：`.husky/pre-push` 每次 push 都会跑 `publish-all.ps1`。若把 Docker 打包并入该脚本，未启动 Docker 就无法推送。因此：
 
-- `publish-all.ps1` 默认 RID 收敛为 `win-x64`、`osx-arm64`（4 个 Linux 发行版目标移交给 `package-linux.ps1`，其发行版→基线映射表随之**只在新脚本中存在一处**，无重复定义）。
+- `publish-all.ps1` 默认 RID 收敛为 `win-x64`、`osx-arm64`（5 个 Linux 发行版目标移交给 `package-linux.ps1`，其发行版→基线映射表随之**只在新脚本中存在一处**，无重复定义）。
 - `publish-all.ps1` 保留 `-Rids` 覆盖能力（需要通用 Linux 目录产物时仍可 `-Rids linux-x64`）。
 
 ## 5. 代码与文件改动清单
@@ -172,7 +173,7 @@ Linux 下用户级数据根本身即应用专属目录，不再追加 `data/` �
 | `Database/DataPaths.cs` | 新增：数据根/数据库路径解析纯函数（含平台枚举与宿主探测入口） |
 | `App.axaml.cs` | 配置改从程序根读取；数据根改由 `DataPaths` 计算；删除内联解析逻辑 |
 | `Tests/TodoList.Tests/DataPathsTests.cs` | 新增：开发/Windows 发布/Linux 发布（有 XDG、无 XDG）等路径用例 |
-| `scripts/package-linux.ps1` | 新增：Docker + fpm 打包四发行版 |
+| `scripts/package-linux.ps1` | 新增：Docker + fpm 打包五发行版 |
 | `scripts/publish-all.ps1` | 默认 RID 收敛为 win-x64/osx-arm64；删除发行版→基线映射与"暂存后复制改名"逻辑；文件头说明同步更新 |
 | `.gitattributes` | 新增 `packaging/** text eol=lf`（启动器/桌面项/Dockerfile 必须 LF，否则容器内 shebang 与桌面项解析失败） |
 | `packaging/Dockerfile` | 新增：fpm 打包镜像（ruby + rpm + binutils + fpm 1.18.0） |
@@ -189,7 +190,7 @@ Linux 下用户级数据根本身即应用专属目录，不再追加 `data/` �
 3. **T3 打包资产**（完成）：`packaging/Dockerfile`、`packaging/todolist.desktop`、`packaging/todolist`、`packaging/postremove.sh`。
 4. **T4 打包脚本**（完成）：`scripts/package-linux.ps1`。
 5. **T5 发布脚本收敛**（完成）：`publish-all.ps1` 默认 RID 调整 + 原生命令调用健壮化。
-6. **T6 容器内实测**（完成）：四发行版容器安装/卸载/依赖解析全部通过，依赖集无需改动。
+6. **T6 容器内实测**（完成）：五发行版容器安装/卸载/依赖解析全部通过，依赖集无需改动。
 7. **T7 文档同步**（完成）：README 打包章节、平台矩阵、数据位置、结构树。
 8. **T8 变更后验证**（完成）：`dotnet build --no-restore` 0 错误 0 警告；`dotnet test` 45/45。
 
@@ -197,7 +198,8 @@ Linux 下用户级数据根本身即应用专属目录，不再追加 `data/` �
 
 - [x] `dotnet build --no-restore` 0 错误（0 警告）。
 - [x] `dotnet test` 全绿：45/45（原 34 个用例 + 新增 11 个路径与配置用例）。
-- [x] `scripts/package-linux.ps1` 一次运行产出 4 个包，文件名符合 §4.1（deb 37MB / rpm 37MB / apk 38MB）。
+- [x] `scripts/package-linux.ps1` 一次运行产出 5 个包，文件名符合 §4.1（deb 37MB / rpm 37MB / apk 38MB）。
+- [x] Fedora 44 容器（`dnf install`）：rpm 元数据正确（License/Vendor/URL/Packager）、`libicu` 等 25 个依赖解析通过、五个文件就位且权限 755/644、`ldd` 无缺失、`dnf remove todolist` 干净卸载（`/opt/todolist` 一并移除）。
 - [x] Ubuntu 22.04 容器：`apt-get install ./TodoList-ubuntu.22.04-x64_*.deb` 依赖解析通过、五个文件就位且权限 755/644、`ldd` 无缺失、`dpkg -r todolist` 干净卸载（`/opt/todolist` 一并移除）。
 - [x] Debian 12 容器：同上（libicu72 解析通过）。
 - [x] RHEL 9 容器（`dnf install --nogpgcheck`）：rpm 元数据正确（License/Vendor/URL/Packager）、依赖解析通过、卸载无残留。
@@ -229,5 +231,6 @@ Linux 下用户级数据根本身即应用专属目录，不再追加 `data/` �
 | 日期 | 被修订项 | 原结论 | 新结论 | 原因（根因） | 获批 |
 |---|---|---|---|---|---|
 | 2026-10-11 | D7、§4.6、§5「代码与文件改动清单」中 `publish-all.ps1` 一行 | 默认 RID 为 `win-x64` / `osx-arm64` | 默认 RID **只保留 `win-x64`**；`osx-arm64` 改为需显式传 `-Rids osx-arm64` 才产出 | design flaw —— macOS 产物要真正可用必须经 codesign 签名 + notarization 公证，两步只能在 macOS 上完成，本机（Windows）无法代劳；不签名的 mac 产物首次打开即被 Gatekeeper 拦截，等于没有可用交付物，却每次 push 都付出约 40MB 与数十秒构建成本 | 用户明确要求「停止对 Mac 的安装包构建」 |
+| 2026-10-11 | D1、§4.1 交付矩阵 | Linux 目标为 4 个发行版（ubuntu.22.04 / debian.12 / rhel.9 / alpine.3.18） | 新增第 5 个目标 **`fedora.44-x64`(.rpm)** | design flaw —— 交付矩阵缺 Fedora 这一代：Fedora 与 RHEL 同为 dnf/rpm 系但版本节奏独立（Fedora 44 对应更新的 glibc/ICU），只出 rhel.9 无法覆盖 Fedora 用户机 | 用户明确要求「Linux 的打包中还需要单独的 Fedora 的包」，版本选定 Fedora 44 |
 
 `-Rids` 覆盖能力保留不变（需要 mac / Linux 便携产物时仍可显式传入），RID 清单的权威源仍是 `scripts/publish-all.ps1` 一处。

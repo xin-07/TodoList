@@ -62,6 +62,7 @@ powershell -ExecutionPolicy Bypass -File scripts/package-linux.ps1
 | Ubuntu 22.04+ | `dist/linux/ubuntu.22.04-x64/TodoList-ubuntu.22.04-x64_<版本>_amd64.deb` | `sudo apt install ./<包>` / `sudo apt remove todolist` |
 | Debian 12+ | `dist/linux/debian.12-x64/TodoList-debian.12-x64_<版本>_amd64.deb` | 同上 |
 | RHEL 9+ | `dist/linux/rhel.9-x64/TodoList-rhel.9-x64-<版本>-1.x86_64.rpm` | `sudo dnf install --nogpgcheck ./<包>` / `sudo dnf remove todolist` |
+| Fedora 44 | `dist/linux/fedora.44-x64/TodoList-fedora.44-x64-<版本>-1.x86_64.rpm` | 同上 |
 | Alpine 3.18+ | `dist/linux/alpine.3.18-x64/TodoList-alpine.3.18-x64-<版本>-r0.apk` | `sudo apk add --allow-untrusted ./<包>` / `sudo apk del todolist` |
 
 - 安装布局：程序 `/opt/todolist/`（含 `config.json`）、启动器 `/usr/bin/todolist`、桌面入口与图标进 `/usr/share/`。
@@ -101,6 +102,8 @@ TodoList/
 │   │   │   └── TodoList-debian.12-x64_1.0.0_amd64.deb
 │   │   ├── rhel.9-x64
 │   │   │   └── TodoList-rhel.9-x64-1.0.0-1.x86_64.rpm
+│   │   ├── fedora.44-x64
+│   │   │   └── TodoList-fedora.44-x64-1.0.0-1.x86_64.rpm
 │   │   └── ubuntu.22.04-x64
 │   │       └── TodoList-ubuntu.22.04-x64_1.0.0_amd64.deb
 │   └── win-x64
@@ -118,7 +121,7 @@ TodoList/
 │       │   ├── folders-add-DONE.md                    # 文件夹收纳功能 SPEC：三视图边栏、归属下拉、新建/重命名/删除确认、联删与旧库迁移。
 │       │   └── hardening-fixes-DONE.md                # 加固修复 SPEC：全局异常日志、定时器守卫、增量过滤、发布版数据落盘与迁移、时间注入。
 │       └── release
-│           └── native-linux-installers-IN_PROGRESS.md # Linux 原生安装包 SPEC：四发行版 deb/rpm/apk、包内布局与依赖、Linux 数据落 XDG 目录。
+│           └── native-linux-installers-IN_PROGRESS.md # Linux 原生安装包 SPEC：五发行版 deb/rpm/apk、包内布局与依赖、Linux 数据落 XDG 目录。
 ├── Models                                             # 数据模型层：任务与文件夹模型、优先级枚举、标题/文件夹名/截止日期校验助手。
 │   ├── DueDate.cs                                     # 截止日期格式的"单一权威源"助手：定义全应用统一的日期格式常量与严格解析逻辑。
 │   ├── FolderName.cs                                  # 文件夹名称的"单一权威源"校验助手：Trim + 非空 + MaxLength。
@@ -136,7 +139,7 @@ TodoList/
 │   └── TodoRepository.cs                              # 任务与文件夹仓库实现：应用内唯一权威数据源。
 ├── scripts
 │   ├── check-commit-msg.js
-│   ├── package-linux.ps1                              # Docker + fpm 生成四发行版原生安装包；目标矩阵/依赖集/包元数据唯一权威源。
+│   ├── package-linux.ps1                              # Docker + fpm 生成五发行版原生安装包；目标矩阵/依赖集/包元数据唯一权威源。
 │   └── publish-all.ps1                                # 发布便携自包含单文件（默认 win-x64），pre-push 会执行。
 ├── Tests                                              # 测试项目：仓库集成测试 + VM 单测 + 路径解析单测。
 │   └── TodoList.Tests
