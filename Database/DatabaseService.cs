@@ -50,7 +50,10 @@ public class DatabaseService
                     created_at  TEXT NOT NULL,
                     priority    TEXT NOT NULL DEFAULT 'None',
                     due_date    TEXT NULL,
-                    folder_id   TEXT NULL
+                    folder_id   TEXT NULL,
+                    recurrence  TEXT NOT NULL DEFAULT 'None',
+                    recurrence_interval INTEGER NOT NULL DEFAULT 1,
+                    recurrence_remaining INTEGER NULL
                 );
                 CREATE TABLE IF NOT EXISTS folder (
                     id          TEXT PRIMARY KEY,
@@ -64,6 +67,9 @@ public class DatabaseService
         EnsureColumn(conn, "priority", "TEXT NOT NULL DEFAULT 'None'");
         EnsureColumn(conn, "due_date", "TEXT NULL");
         EnsureColumn(conn, "folder_id", "TEXT NULL");
+        EnsureColumn(conn, "recurrence", "TEXT NOT NULL DEFAULT 'None'");
+        EnsureColumn(conn, "recurrence_interval", "INTEGER NOT NULL DEFAULT 1");
+        EnsureColumn(conn, "recurrence_remaining", "INTEGER NULL");
 
         // folder_id 查询索引：提升"按文件夹归类"类查询性能。置于补列之后，确保旧库先有该列再建索引。
         using (var idx = conn.CreateCommand())
@@ -104,7 +110,7 @@ public class DatabaseService
         var result = new List<TodoItem>();
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT id, title, is_completed, created_at, priority, due_date, folder_id FROM tasks;";
+        cmd.CommandText = "SELECT id, title, is_completed, created_at, priority, due_date, folder_id, recurrence, recurrence_interval, recurrence_remaining FROM tasks;";
         using var reader = cmd.ExecuteReader();
         while (reader.Read())
         {
@@ -116,6 +122,14 @@ public class DatabaseService
                 priority = parsed;
             }
 
+            var recurrence = RecurrenceType.None;
+            if (!reader.IsDBNull(7)
+                && Enum.TryParse<RecurrenceType>(reader.GetString(7), ignoreCase: true, out var parsedRecurrence)
+                && Enum.IsDefined(parsedRecurrence))
+            {
+                recurrence = parsedRecurrence;
+            }
+
             result.Add(new TodoItem
             {
                 Id = reader.GetString(0),
@@ -125,6 +139,9 @@ public class DatabaseService
                 Priority = priority,
                 DueDate = reader.IsDBNull(5) ? null : ParseDate(reader.GetString(5)),
                 FolderId = reader.IsDBNull(6) ? null : reader.GetString(6),
+                Recurrence = recurrence,
+                RecurrenceInterval = reader.GetInt64(8) >= 1 ? (int)reader.GetInt64(8) : 1,
+                RecurrenceRemaining = reader.IsDBNull(9) ? null : (int)Math.Max(1, reader.GetInt64(9)),
             });
         }
         return result;
@@ -202,11 +219,42 @@ public class DatabaseService
     {
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
+        // 清除截止日期时联动清空周期规则（两者绑定，避免留下不可触发的悬空规则，见 SPEC 阶段三）。
         cmd.CommandText = date is null
-            ? "UPDATE tasks SET due_date = NULL WHERE id = $id;"
+            ? "UPDATE tasks SET due_date = NULL, recurrence = 'None', recurrence_interval = 1, recurrence_remaining = NULL WHERE id = $id;"
             : "UPDATE tasks SET due_date = $due_date WHERE id = $id;";
         if (date is not null)
             cmd.Parameters.AddWithValue("$due_date", date.Value.ToString("o"));
+        cmd.Parameters.AddWithValue("$id", id);
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>设置周期规则。type=None 时同时重置间隔为 1、剩余次数为 NULL（归为普通任务）。</summary>
+    public void UpdateRecurrence(string id, RecurrenceType type, int interval, int? remaining)
+    {
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = """
+            UPDATE tasks SET recurrence = $type, recurrence_interval = $interval, recurrence_remaining = $remaining WHERE id = $id;
+            """;
+        cmd.Parameters.AddWithValue("$type", type.ToString());
+        cmd.Parameters.AddWithValue("$interval", interval);
+        cmd.Parameters.AddWithValue("$remaining", (object?)remaining ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$id", id);
+        cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>
+    /// 周期任务完成时的一次性滚动写入（单语句保证原子性）：
+    /// 截止日期推进到下一期、剩余次数更新、完成状态归零（同条任务续期，不保留完成历史）。
+    /// </summary>
+    public void RollRecurrence(string id, DateTime nextDue, int? remaining)
+    {
+        using var conn = OpenConnection();
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE tasks SET due_date = $due_date, recurrence_remaining = $remaining, is_completed = 0 WHERE id = $id;";
+        cmd.Parameters.AddWithValue("$due_date", nextDue.ToString("o"));
+        cmd.Parameters.AddWithValue("$remaining", (object?)remaining ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$id", id);
         cmd.ExecuteNonQuery();
     }

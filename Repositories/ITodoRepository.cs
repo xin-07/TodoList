@@ -28,8 +28,14 @@ public interface ITodoRepository
     /// <summary>设置一条任务的优先级。</summary>
     void SetPriority(string id, TaskPriority priority);
 
-    /// <summary>设置一条任务的截止时间；传 null 表示清除。</summary>
+    /// <summary>设置一条任务的截止时间；传 null 表示清除（并联动清空该任务的周期规则）。</summary>
     void SetDueDate(string id, DateTime? date);
+
+    /// <summary>
+    /// 设置一条任务的周期规则（滚动式：完成时推进到下一期）。type=None 表示取消周期。
+    /// 返回是否成功（任务不存在、未设截止日期、interval&lt;1 或剩余次数&lt;1 时返回 false）。
+    /// </summary>
+    bool SetRecurrence(string id, RecurrenceType type, int interval, int? remaining);
 
     /// <summary>切换任务的完成状态。true=已完成，false=未完成。</summary>
     void SetCompleted(string id, bool isCompleted);

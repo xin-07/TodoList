@@ -388,6 +388,7 @@
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <Button Classes="dueSelect"
                                         Classes.hasDue="{Binding HasDueText}"
@@ -428,6 +429,57 @@
                                                           DisplayDate="{Binding DisplayDate, Mode=TwoWay}"
                                                           DisplayDateStart="1979-01-01" />
 
+                                                <!-- [DEFERRED 2026-10-18 阶段三周期性任务暂缓（用户决定）] UI 入口整体注释停用。
+                                                     重新启用方法：
+                                                     1) 解开下方整段注释（内部原注释已并入本说明：周期设置采用滚动式，
+                                                        完成即推进到下一期，必须建立在截止日期之上）；
+                                                     2) 恢复 TodoRepository.SetCompleted 内滚动分支（见同文件 DEFERRED 标记）。
+                                                     功能与契约说明：docs/spec/feature/enhance-todo-features-IN_PROGRESS.md 阶段三。 -->
+                                                <!--
+                                                <Separator Margin="0,2" />
+                                                <StackPanel Spacing="4" IsEnabled="{Binding IsDueDateSet}">
+                                                    <ComboBox ItemsSource="{Binding RecurrenceOptions}"
+                                                              SelectedItem="{Binding SelectedRecurrence, Mode=TwoWay}"
+                                                              MinWidth="214"
+                                                              HorizontalAlignment="Stretch">
+                                                        <ComboBox.ItemTemplate>
+                                                            <DataTemplate x:DataType="vm:RecurrenceOption">
+                                                                <TextBlock Text="{Binding Label}" />
+                                                            </DataTemplate>
+                                                        </ComboBox.ItemTemplate>
+                                                    </ComboBox>
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <TextBlock Text="间隔" VerticalAlignment="Center" />
+                                                        <TextBox Text="{Binding RecurrenceIntervalText, Mode=TwoWay}"
+                                                                 Width="44" />
+                                                        <TextBlock Text="期（1=每期；2=隔一期）"
+                                                                   FontSize="11"
+                                                                   Foreground="Gray"
+                                                                   VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                        <TextBlock Text="次数" VerticalAlignment="Center" />
+                                                        <TextBox Text="{Binding RecurrenceRemainingText, Mode=TwoWay}"
+                                                                 Width="44" />
+                                                        <TextBlock Text="次剩余（留空=无限，含本次）"
+                                                                   FontSize="11"
+                                                                   Foreground="Gray"
+                                                                   VerticalAlignment="Center" />
+                                                    </StackPanel>
+                                                    <Button Content="应用重复设置"
+                                                            HorizontalAlignment="Stretch"
+                                                            HorizontalContentAlignment="Center"
+                                                            Command="{Binding ApplyRecurrenceCommand}" />
+                                                    <TextBlock Text="{Binding RecurrenceError}"
+                                                               Classes="error"
+                                                               IsVisible="{Binding RecurrenceError, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
+                                                </StackPanel>
+                                                <TextBlock Text="设置重复前请先选择截止日期"
+                                                           FontSize="11"
+                                                           Foreground="Gray"
+                                                           IsVisible="{Binding !IsDueDateSet}" />
+                                                -->
+
                                                 <!-- 清空按钮：平时不显示，仅在用户已选择截止日期后显示 -->
                                                 <Button Content="清空截止日期"
                                                         HorizontalAlignment="Stretch"
@@ -459,6 +511,13 @@
                                            Text="{Binding DueDateError}"
                                            Classes="error"
                                            IsVisible="{Binding DueDateError, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
+                                                <!-- [DEFERRED 2026-10-18 阶段三组件注释停用；重新启用时与本文件"重复"注释块一起解开]
+                                                <TextBlock Grid.Row="3"
+                                                           Text="{Binding RecurrenceText}"
+                                                           FontSize="11"
+                                                           Foreground="Gray"
+                                                           IsVisible="{Binding RecurrenceText, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
+                                                -->
                             </Grid>
 
                             <!-- 删除 -->

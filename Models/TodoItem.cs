@@ -12,6 +12,9 @@ public class TodoItem : ViewModelBase
     private bool _isCompleted;
     private TaskPriority _priority;
     private DateTime? _dueDate;
+    private RecurrenceType _recurrence;
+    private int _recurrenceInterval = 1;
+    private int? _recurrenceRemaining;
     private string _title = "";
     private string? _folderId;
 
@@ -47,6 +50,27 @@ public class TodoItem : ViewModelBase
     {
         get => _dueDate;
         set => SetProperty(ref _dueDate, value);
+    }
+
+    /// <summary>周期规则（None=不重复；规则必须建立在已设截止日期之上）。仅允许 Repository 写入。</summary>
+    public RecurrenceType Recurrence
+    {
+        get => _recurrence;
+        set => SetProperty(ref _recurrence, value);
+    }
+
+    /// <summary>周期间隔：每 N 个周期单位滚动一次（≥1）。仅允许 Repository 写入。</summary>
+    public int RecurrenceInterval
+    {
+        get => _recurrenceInterval;
+        set => SetProperty(ref _recurrenceInterval, value);
+    }
+
+    /// <summary>剩余发生次数（含当前待办这一次；null=无限）。仅允许 Repository 写入。</summary>
+    public int? RecurrenceRemaining
+    {
+        get => _recurrenceRemaining;
+        set => SetProperty(ref _recurrenceRemaining, value);
     }
 
     /// <summary>所属文件夹 Id（null = 未归类）。单归属；仅允许 Repository 写入。</summary>

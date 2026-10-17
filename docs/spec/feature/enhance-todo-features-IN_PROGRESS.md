@@ -76,10 +76,18 @@
   - **THEN** 列表仅显示匹配任务。
 
 ### Requirement: 周期性任务
-系统 SHALL 支持按日/周/月/年周期生成任务实例，可设间隔与次数/无限。
+系统 SHALL 支持按日/周/月/年周期自动续期的任务，可设间隔与次数/无限。
 - **Scenario: 生成周期实例**
-  - **WHEN** 用户完成/达到一个周期任务实例
-  - **THEN** 按规则生成下一个实例（次数取尽则停止）。
+  - **WHEN** 用户完成一个带周期规则且已设置截止日期的任务
+  - **THEN** 同一任务的截止日期按规则滚动到下一周期（当前周期基础上加 N 个周期单位），已完成状态重置为未完成，其余属性不变。
+- **Scenario: 次数取尽**
+  - **WHEN** 剩余次数为 1 的周期任务被完成
+  - **THEN** 不再滚动：任务保持完成态，周期规则清除（归为普通任务）。
+- **Scenario: 无截止基点**
+  - **WHEN** 任务未设置截止日期
+  - **THEN** 无法设置周期规则；清空截止日期时周期规则一并清空（两者绑定，不产生不可触发的悬空规则）。
+
+> 2026-10-17 契约修订（Article 7，用户确认）：原设计为模板/实例两级（`is_recurring`/`recurrence_type`/`recurrence_interval`/`recurrence_count`/`parent_task_id`，完成时克隆生成子任务）。**采用滚动式** —— 同条任务滚动到下一期、不保留完成历史：`parent_task_id` 取消；`recurrence_count`（总次数）语义由 `recurrence_remaining`（剩余次数，NULL=无限）取代——滚动式不保存发生历史，无法推算"已发生次数"，剩余次数即可表达"次数取尽"。数据库新增 3 列：`recurrence` / `recurrence_interval` / `recurrence_remaining`（无 `is_recurring`，`recurrence != 'None'` 即开启）。
 
 ### Requirement: 搜索 / 筛选 / 排序 / 空状态
 系统 SHALL 提供关键词搜索、多条件筛选（状态/优先级）、用户可选排序与空状态引导。
@@ -196,11 +204,13 @@
   - [ ] [DEFERRED] T2.3 UI：分类/标签 CRUD + 任务挂载 + 按分类/标签筛选
   - [ ] [DEFERRED] 验证：分类/标签可增删与筛选，数据落库重启保留
 
-- [ ] 阶段三：周期性任务
-  - [ ] T3.1 `TodoItem` 增加周期字段；`tasks` 表列 + 迁移
-  - [ ] T3.2 周期规则引擎（daily/weekly/monthly/yearly + interval + count/无限），生成实例
-  - [ ] T3.3 UI：周期设置入口；完成时按规则生成下一实例
-  - [ ] 验证：周期生成/次数取尽逻辑正确
+- [x] 阶段三：周期性任务（滚动式，2026-10-17 用户确认方案 A + 截止日期弹层内 UI）——**[DEFERRED 2026-10-18 用户决定：功能注释停用]**
+  - [x] T3.1 模型与库：`Models/RecurrenceType.cs`（None/Daily/Weekly/Monthly/Yearly 单一权威源）；`TodoItem` 增 `Recurrence`/`RecurrenceInterval`/`RecurrenceRemaining?`；`tasks` 表 3 列建表 + `EnsureColumn` 幂等迁移；`UpdateRecurrence`/`RollRecurrence` SQL，`UpdateDueDate(null)` 联清周期（**休眠保留：枚举/纯函数/模型字段/库列与读写方法无害，勿删**）
+  - [x] T3.2 规则引擎：`Models/Recurrence.cs` 纯函数 `NextDue(due, type, interval)` 与 `ToDisplayText(...)`（单测覆盖；月末 clamp 验证通过）
+  - [x] T3.3 仓库：`SetRecurrence(id, type, interval, remaining)`（bool 语义校验，休眠保留）；`SetCompleted(true)` 滚动分支——**已注释停用（TodoRepository.cs 内 [DEFERRED] 标记）**
+  - [x] T3.4 UI：截止日期弹层"重复"区块 + 行内规则摘要——**已注释停用（MainWindow.axaml 内 [DEFERRED] 标记，共 2 处）**
+  - [x] T3.5 单测：16 用例入 `RecurrenceTests.cs`；4 个滚动行为用例挂 `Skip` 随功能停用，其余照常全绿
+  - [ ] 验证：仓库层滚动逻辑 16 用例覆盖全绿，但**用户人工实测发现缺陷未定位**——"完成周期任务后截止日期未推进到下一期"（实时 UI 链路或边缘路径嫌疑；未复现根因前不重新启用）；恢复使用步骤见 TodoRepository.cs / MainWindow.axaml 注释块
 
 - [x] 阶段四：视图与交互
   - [x] T4.1 关键词搜索（FilteredItems 投影建立在仓库只读源上）—— **2026-10-17 核对：已实现**（`ApplyFilter()` 标题过滤+视图叠加+增量 diff，README 已列为交付功能），补记勾选
@@ -267,9 +277,12 @@
 - [ ] [DEFERRED] 任务可挂分类/标签
 - [ ] [DEFERRED] 按分类/标签筛选正确
 
-## 阶段三 · 周期性任务
-- [ ] 周期规则生成实例正确（daily/weekly/monthly/yearly + interval + count/无限）
-- [ ] 次数取尽后停止
+## 阶段三 · 周期性任务（滚动式）[DEFERRED 2026-10-18：功能注释停用，重新启用前须先定位"完成未推进"缺陷]
+- [x] 完成即滚动到下一期正确（daily/weekly/monthly/yearly + 间隔 N；月末 clamp；单步推进）——仓库层 16 用例验证通过，实时链路存疑（见缺陷记录）
+- [x] 剩余次数递减正确；取尽后完成定格、周期清除（归为普通任务）——同上
+- [x] 未设截止日期不可设周期（UI 禁用 + 仓库拒绝）；清空截止日期联清周期——休眠保留，校验可用例覆盖
+- [x] 行内可见规则摘要（如"每周 · 剩 3 次"）；列表不堆积重复实例——UI 已注释停用
+- **缺陷记录（2026-10-18 用户实测）**：完成任务后截止日期未更新到下一周期。仓库层滚动（含双路径落库交叉验证）测试全绿，根因疑在实时 UI 链路或边缘路径（如单步滚动后下一期仍在过去导致显示"已过期"），未定位；重新启用必须先复现修复。
 
 ## 阶段四 · 视图与交互
 - [x] 关键词搜索正确（2026-10-17 核对：已实现，增量 diff 无 Reset）

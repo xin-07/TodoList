@@ -11,6 +11,9 @@ namespace TodoList.ViewModels;
 /// <summary>优先级下拉的单个选项。</summary>
 public sealed record PriorityOption(TaskPriority Value, string Label);
 
+/// <summary>周期规则下拉的单个选项。</summary>
+public sealed record RecurrenceOption(RecurrenceType Value, string Label);
+
 /// <summary>
 /// 列表行的 ViewModel：承载行内编辑状态、优先级/截止日期等派生展示。
 ///
@@ -28,6 +31,15 @@ public sealed class TodoItemViewModel : ViewModelBase
         new PriorityOption(TaskPriority.High, "高"),
     };
 
+    private static readonly IReadOnlyList<RecurrenceOption> _recurrenceOptions = new[]
+    {
+        new RecurrenceOption(RecurrenceType.None, "不重复"),
+        new RecurrenceOption(RecurrenceType.Daily, "每天"),
+        new RecurrenceOption(RecurrenceType.Weekly, "每周"),
+        new RecurrenceOption(RecurrenceType.Monthly, "每月"),
+        new RecurrenceOption(RecurrenceType.Yearly, "每年"),
+    };
+
     private readonly ITodoRepository _repo;
     private readonly TodoItem _item;
     private readonly IReadOnlyList<SidebarItemViewModel> _folderChoices;
@@ -42,6 +54,11 @@ public sealed class TodoItemViewModel : ViewModelBase
     private string _dueText = "";
     private bool _isOverdue;
     private bool _isDueToday;
+    private RecurrenceOption _selectedRecurrence;
+    private string _recurrenceIntervalText = "1";
+    private string _recurrenceRemainingText = "";
+    private string _recurrenceError = "";
+    private string _recurrenceText = "";
     /// <summary>该行截止日期输入框当前是否聚焦（用户正在编辑）。定时器刷新时据此跳过覆盖输入内容。</summary>
     public bool IsDueDateEditing { get; set; }
 
@@ -58,6 +75,10 @@ public sealed class TodoItemViewModel : ViewModelBase
         _editText = item.Title;
         _dueDateText = item.DueDate.HasValue ? DueDate.ToDisplayString(item.DueDate.Value) : "";
         _displayDate = item.DueDate?.Date ?? _now().Date;
+        _selectedRecurrence = MatchRecurrence(item.Recurrence);
+        _recurrenceIntervalText = item.RecurrenceInterval.ToString();
+        _recurrenceRemainingText = item.RecurrenceRemaining?.ToString() ?? "";
+        RefreshRecurrenceText(item);
         RefreshDue();
 
         BeginEditCommand = new RelayCommand(_ => BeginEdit());
@@ -65,6 +86,7 @@ public sealed class TodoItemViewModel : ViewModelBase
         CancelEditCommand = new RelayCommand(_ => CancelEdit());
         SetDueDateCommand = new RelayCommand(_ => ApplyDueDate());
         ClearDueDateCommand = new RelayCommand(_ => DueDateSelectedDate = null);
+        ApplyRecurrenceCommand = new RelayCommand(_ => ApplyRecurrence());
         PrevYearCommand = new RelayCommand(_ => DisplayDate = DisplayDate.AddYears(-1));
         NextYearCommand = new RelayCommand(_ => DisplayDate = DisplayDate.AddYears(1));
         PrevMonthCommand = new RelayCommand(_ => DisplayDate = DisplayDate.AddMonths(-1));
@@ -254,11 +276,142 @@ public sealed class TodoItemViewModel : ViewModelBase
     public bool IsOverdue { get => _isOverdue; private set => SetProperty(ref _isOverdue, value); }
     public bool IsDueToday { get => _isDueToday; private set => SetProperty(ref _isDueToday, value); }
 
+    // ---- 周期规则（滚动式，UI 位于截止日期弹层内，见 SPEC 阶段三） ----
+
+    /// <summary>周期下拉选项。</summary>
+    public IReadOnlyList<RecurrenceOption> RecurrenceOptions => _recurrenceOptions;
+
+    /// <summary> 当前周期规则选择（ComboBox 双向绑定；点"应用重复设置"时统一校验落库）。</summary>
+    public RecurrenceOption SelectedRecurrence
+    {
+        get => _selectedRecurrence;
+        set
+        {
+            if (value is not null && SetProperty(ref _selectedRecurrence, value))
+                RecurrenceError = "";
+        }
+    }
+
+    /// <summary>周期间隔输入：每 N 个周期单位滚动一次（≥1）。</summary>
+    public string RecurrenceIntervalText
+    {
+        get => _recurrenceIntervalText;
+        set
+        {
+            if (SetProperty(ref _recurrenceIntervalText, value))
+                RecurrenceError = "";
+        }
+    }
+
+    /// <summary>剩余次数输入：留空=无限；填写时为 ≥1 的整数（含当前待办这一次）。</summary>
+    public string RecurrenceRemainingText
+    {
+        get => _recurrenceRemainingText;
+        set
+        {
+            if (SetProperty(ref _recurrenceRemainingText, value))
+                RecurrenceError = "";
+        }
+    }
+
+    public string RecurrenceError { get => _recurrenceError; private set => SetProperty(ref _recurrenceError, value); }
+
+    /// <summary>行内规则摘要（如"每周 · 剩 3 次"；不重复为空串）。</summary>
+    public string RecurrenceText
+    {
+        get => _recurrenceText;
+        private set
+        {
+            if (SetProperty(ref _recurrenceText, value))
+                OnPropertyChanged(nameof(HasRecurrenceText));
+        }
+    }
+
+    public bool HasRecurrenceText => !string.IsNullOrEmpty(RecurrenceText);
+
+    private RecurrenceOption MatchRecurrence(RecurrenceType value)
+        => _recurrenceOptions.FirstOrDefault(o => o.Value == value) ?? _recurrenceOptions[0];
+
+    /// <summary>把投影内任务的周期规则回填到弹层输入与行内摘要（落库/滚动由事件链路触发）。</summary>
+    private void SyncRecurrenceFields(TodoItem item)
+    {
+        _selectedRecurrence = MatchRecurrence(item.Recurrence);
+        OnPropertyChanged(nameof(SelectedRecurrence));
+        _recurrenceIntervalText = item.RecurrenceInterval.ToString();
+        OnPropertyChanged(nameof(RecurrenceIntervalText));
+        _recurrenceRemainingText = item.RecurrenceRemaining?.ToString() ?? "";
+        OnPropertyChanged(nameof(RecurrenceRemainingText));
+        RefreshRecurrenceText(item);
+    }
+
+    private void RefreshRecurrenceText(TodoItem item)
+    {
+        RecurrenceText = Recurrence.ToDisplayText(item.Recurrence, item.RecurrenceInterval, item.RecurrenceRemaining) ?? "";
+    }
+
+    /// <summary>"应用重复设置"：解析与校验全部通过后一次性写库；失败时按投影真实状态还原输入。</summary>
+    private void ApplyRecurrence()
+    {
+        // 校验失败只提示错误并保留用户草稿（尚未写库，无"真实状态"需要回填；
+        // 写库成功后的输入回填由投影 PropertyChanged 事件链路自动完成）。
+        var type = _selectedRecurrence?.Value ?? RecurrenceType.None;
+
+        // 取消周期：直接写库（仓库内归一化为间隔 1 / 无限），无额外校验。
+        if (type == RecurrenceType.None)
+        {
+            if (_repo.SetRecurrence(_item.Id, RecurrenceType.None, 1, null))
+            {
+                RecurrenceError = "";
+                return;
+            }
+            RecurrenceError = "设置失败，请重试";
+            return;
+        }
+
+        if (!_item.DueDate.HasValue)
+        {
+            RecurrenceError = "请先设置截止日期，再设置重复";
+            return;
+        }
+
+        const string errorHint = "间隔与剩余次数需为 ≥1 的整数（次数留空表示无限）";
+
+        var intervalOk = int.TryParse((RecurrenceIntervalText ?? "").Trim(), out var interval) && interval >= 1;
+
+        int? remaining = null;
+        var remainingRaw = (RecurrenceRemainingText ?? "").Trim();
+        if (remainingRaw.Length > 0)
+        {
+            // 非空时必须为 ≥1 的整数，否则拒绝（不产生半套规则）。
+            if (!int.TryParse(remainingRaw, out var rem) || rem < 1)
+            {
+                RecurrenceError = errorHint;
+                return;
+            }
+            remaining = rem;
+        }
+
+        if (!intervalOk)
+        {
+            RecurrenceError = errorHint;
+            return;
+        }
+
+        if (_repo.SetRecurrence(_item.Id, type, interval, remaining))
+        {
+            RecurrenceError = "";
+            return;
+        }
+
+        RecurrenceError = "设置失败，请重试";
+    }
+
     public ICommand BeginEditCommand { get; }
     public ICommand SaveEditCommand { get; }
     public ICommand CancelEditCommand { get; }
     public ICommand SetDueDateCommand { get; }
     public ICommand ClearDueDateCommand { get; }
+    public ICommand ApplyRecurrenceCommand { get; }
     public ICommand PrevYearCommand { get; }
     public ICommand NextYearCommand { get; }
     public ICommand PrevMonthCommand { get; }
@@ -422,6 +575,12 @@ public sealed class TodoItemViewModel : ViewModelBase
             case nameof(TodoItem.FolderId):
                 // 归属变化时刷新下拉选中。
                 OnPropertyChanged(nameof(SelectedFolder));
+                break;
+            case nameof(TodoItem.Recurrence):
+            case nameof(TodoItem.RecurrenceInterval):
+            case nameof(TodoItem.RecurrenceRemaining):
+                // 周期规则变化（含完成滚动后的剩余次数递减）：回填弹层输入与行内摘要。
+                SyncRecurrenceFields(_item);
                 break;
         }
     }
