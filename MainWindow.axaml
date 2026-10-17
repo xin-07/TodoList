@@ -195,6 +195,52 @@
                        IsVisible="{Binding AddError, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}"
                        Margin="0,-6,0,8" />
 
+            <!-- 筛选/排序工具条（阶段四 T4.2）：状态、优先级筛选与排序方式，
+                 与标题搜索、边栏视图取交集。选项列表在 ViewModel 单一定义。 -->
+            <StackPanel DockPanel.Dock="Top"
+                        Orientation="Horizontal"
+                        Spacing="8"
+                        Margin="0,0,0,8">
+                <TextBlock Text="状态"
+                           VerticalAlignment="Center"
+                           Foreground="Gray" />
+                <ComboBox MinWidth="90"
+                          ItemsSource="{Binding StatusFilterOptions}"
+                          SelectedItem="{Binding StatusFilter}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:StatusOption">
+                            <TextBlock Text="{Binding Label}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+
+                <TextBlock Text="优先级"
+                           VerticalAlignment="Center"
+                           Foreground="Gray" />
+                <ComboBox MinWidth="90"
+                          ItemsSource="{Binding PriorityFilterOptions}"
+                          SelectedItem="{Binding PriorityFilter}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:PriorityFilterOption">
+                            <TextBlock Text="{Binding Label}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+
+                <TextBlock Text="排序"
+                           VerticalAlignment="Center"
+                           Foreground="Gray" />
+                <ComboBox MinWidth="105"
+                          ItemsSource="{Binding SortOptions}"
+                          SelectedItem="{Binding SortBy}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:SortOption">
+                            <TextBlock Text="{Binding Label}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+            </StackPanel>
+
             <!-- 底部：统计 -->
             <TextBlock DockPanel.Dock="Bottom"
                        Margin="0,12,0,0"
@@ -242,8 +288,10 @@
                 </Grid>
             </Border>
 
-            <!-- 中部：任务列表（网格化行，列与表头对齐；内容超出窗口高度时上下滚动） -->
-            <ScrollViewer x:Name="TaskListScroll" VerticalScrollBarVisibility="Auto">
+            <!-- 中部：任务列表（网格化行，列与表头对齐；内容超出窗口高度时上下滚动），
+                 并叠加空状态引导（阶段四 T4.3）：任务为空时居中显示三态文案 -->
+            <Grid>
+                <ScrollViewer x:Name="TaskListScroll" VerticalScrollBarVisibility="Auto">
                 <ItemsControl ItemsSource="{Binding DisplayItems}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:TodoItemViewModel">
@@ -425,7 +473,22 @@
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
                 </ItemsControl>
-            </ScrollViewer>
+                </ScrollViewer>
+
+                <!-- 空状态引导：任务非空时整组隐藏；有生效中的筛选/搜索时附"清除筛选"按钮 -->
+                <StackPanel IsVisible="{Binding IsEmpty}"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            Spacing="8">
+                    <TextBlock Text="{Binding EmptyStateText}"
+                               Foreground="Gray"
+                               HorizontalAlignment="Center" />
+                    <Button Content="清除筛选"
+                            Command="{Binding ClearFiltersCommand}"
+                            IsVisible="{Binding HasActiveFilter}"
+                            HorizontalAlignment="Center" />
+                </StackPanel>
+            </Grid>
 
         </DockPanel>
     </Grid>

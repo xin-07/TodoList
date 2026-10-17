@@ -34,19 +34,64 @@ public sealed class DeleteFolderConfirmEventArgs : EventArgs
     public SidebarItemViewModel Item { get; }
 }
 
+/// <summary>状态筛选下拉的单个选项。</summary>
+public sealed record StatusOption(string Key, string Label);
+
+/// <summary>优先级筛选下拉的单个选项（Value 为 null 表示全部）。</summary>
+public sealed record PriorityFilterOption(TaskPriority? Value, string Label);
+
+/// <summary>排序方式下拉的单个选项。</summary>
+public sealed record SortOption(string Key, string Label);
+
 /// <summary>
 /// 主窗口 ViewModel。
 ///
 /// 它不含权威数据，只消费仓库暴露的只读投影：
 ///  - 增删改一律调用仓库；
-///  - 展示列表 <see cref="DisplayItems"/> 是按当前视图(全部/文件夹/未归类)过滤、
-///    再按优先级从高到低排序后的只读投影，并叠加标题搜索。
+///  - 展示列表 <see cref="DisplayItems"/> 是按当前视图(全部/文件夹/未归类)、
+///    状态与优先级筛选、标题搜索过滤后，按用户所选排序方式排序的只读投影。
 /// </summary>
 public class MainWindowViewModel : ViewModelBase
 {
     /// <summary>边栏三种视图的稳定 Key。</summary>
     public const string KeyAll = "all";
     public const string KeyUncategorized = "none";
+
+    /// <summary>状态筛选的稳定 Key。</summary>
+    public const string StatusAll = "all";
+    public const string StatusIncomplete = "incomplete";
+    public const string StatusCompleted = "completed";
+
+    /// <summary>排序方式的稳定 Key。</summary>
+    public const string SortPriority = "priority";
+    public const string SortDueDate = "due";
+    public const string SortCreatedAt = "created";
+
+    /// <summary>状态下拉选项：全部 / 未完成 / 已完成（单一权威定义，经实例属性给 XAML/测试）。</summary>
+    private static readonly IReadOnlyList<StatusOption> _statusOptions = new[]
+    {
+        new StatusOption(StatusAll, "全部"),
+        new StatusOption(StatusIncomplete, "未完成"),
+        new StatusOption(StatusCompleted, "已完成"),
+    };
+
+    /// <summary>优先级筛选下拉选项：全部 + 四档（单一权威定义）。</summary>
+    private static readonly IReadOnlyList<PriorityFilterOption> _priorityFilterOptions = new[]
+    {
+        new PriorityFilterOption(null, "全部"),
+        new PriorityFilterOption(TaskPriority.High, "高"),
+        new PriorityFilterOption(TaskPriority.Medium, "中"),
+        new PriorityFilterOption(TaskPriority.Low, "低"),
+        new PriorityFilterOption(TaskPriority.None, "无"),
+    };
+
+    /// <summary>排序方式下拉选项（单一权威定义）。</summary>
+    private static readonly IReadOnlyList<SortOption> _sortOptions = new[]
+    {
+        new SortOption(SortPriority, "优先级"),
+        new SortOption(SortDueDate, "截止日期"),
+        new SortOption(SortCreatedAt, "创建时间"),
+    };
 
     private readonly ITodoRepository _repo;
     /// <summary>可注入时钟，默认系统当前时间；到期提醒扫描据此可测。</summary>
@@ -77,6 +122,10 @@ public class MainWindowViewModel : ViewModelBase
     private string _addError = "";
     private int _totalCount;
     private int _completedCount;
+
+    private StatusOption _statusFilter = _statusOptions[0];
+    private PriorityFilterOption _priorityFilter = _priorityFilterOptions[0];
+    private SortOption _sortBy = _sortOptions[0];
 
     public MainWindowViewModel(ITodoRepository repo, Func<DateTime>? nowProvider = null)
     {
@@ -111,6 +160,7 @@ public class MainWindowViewModel : ViewModelBase
             if (p is SidebarItemViewModel item)
                 RequestDeleteFolder(item);
         });
+        ClearFiltersCommand = new RelayCommand(_ => ClearFilters());
 
         // 到期提醒：轻量定时器周期扫描，早于/等于当前时间且未完成的未提醒任务触发系统通知。
         _alarmTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
@@ -190,6 +240,78 @@ public class MainWindowViewModel : ViewModelBase
         }
     }
 
+    /// <summary>状态筛选下拉选项（全部/未完成/已完成）。</summary>
+    public IReadOnlyList<StatusOption> StatusFilterOptions => _statusOptions;
+
+    /// <summary>当前状态筛选（下拉双向绑定，变更后重跑过滤；默认"全部"）。</summary>
+    public StatusOption StatusFilter
+    {
+        get => _statusFilter;
+        set
+        {
+            if (value is null || _statusFilter == value)
+                return;
+            _statusFilter = value;
+            OnPropertyChanged();
+            ApplyFilter();
+        }
+    }
+
+    /// <summary>优先级筛选下拉选项。</summary>
+    public IReadOnlyList<PriorityFilterOption> PriorityFilterOptions => _priorityFilterOptions;
+
+    /// <summary>当前优先级筛选（下拉双向绑定；Value 为 null 表示全部，变更后重跑过滤）。</summary>
+    public PriorityFilterOption PriorityFilter
+    {
+        get => _priorityFilter;
+        set
+        {
+            if (value is null || _priorityFilter == value)
+                return;
+            _priorityFilter = value;
+            OnPropertyChanged();
+            ApplyFilter();
+        }
+    }
+
+    /// <summary>排序方式下拉选项。</summary>
+    public IReadOnlyList<SortOption> SortOptions => _sortOptions;
+
+    /// <summary>当前排序方式（下拉双向绑定；变更后按新方向重排并刷新过滤视图）。</summary>
+    public SortOption SortBy
+    {
+        get => _sortBy;
+        set
+        {
+            if (value is null || _sortBy == value)
+                return;
+            _sortBy = value;
+            OnPropertyChanged();
+            Reorder();
+            ApplyFilter();
+        }
+    }
+
+    /// <summary>展示列表是否为空（驱动空状态引导可见性；变更通知由 ApplyFilter 统一发出）。</summary>
+    public bool IsEmpty => _filterDisplay.Count == 0;
+
+    /// <summary>
+    /// 是否有生效中的标题搜索或状态/优先级筛选（驱动"清除筛选"按钮可见性）。
+    /// 边栏视图选择与排序方式不计入：视图为空有专属空状态文案，清除筛选也保留视图与排序。
+    /// </summary>
+    public bool HasActiveFilter =>
+        _newTaskTitle.Trim().Length != 0
+        || _statusFilter.Key != StatusAll
+        || _priorityFilter.Value is not null;
+
+    /// <summary>空状态引导文案，按"库内无任务 / 有任务但筛选无匹配 / 有任务但当前视图为空"三态区分。</summary>
+    public string EmptyStateText =>
+        _totalCount == 0
+            ? "暂无任务，输入标题后回车创建第一条"
+            : HasActiveFilter
+                ? "没有符合筛选条件的任务"
+                : "此视图暂无任务";
+
     public int TotalCount => _totalCount;
     public int CompletedCount => _completedCount;
 
@@ -202,6 +324,9 @@ public class MainWindowViewModel : ViewModelBase
 
     /// <summary>删除文件夹命令：向 View 层发起确认请求（不直接删除）。</summary>
     public ICommand DeleteFolderCommand { get; }
+
+    /// <summary>清除筛选命令：重置状态、优先级与标题搜索（保留排序方式与边栏视图）。</summary>
+    public ICommand ClearFiltersCommand { get; }
 
     private void AddTask()
     {
@@ -233,6 +358,19 @@ public class MainWindowViewModel : ViewModelBase
         AddFolderError = "";
         // 创建成功后收起命名输入区（点击其它区域/确认后均退出编辑）。
         IsNewFolderOpen = false;
+    }
+
+    /// <summary>
+    /// 清除筛选：重置状态、优先级与标题搜索，保留排序方式与边栏视图。
+    /// 经属性 setter 赋值，各变更通知与过滤重跑路径与手选下拉一致；已是默认值时自动跳过。
+    /// </summary>
+    private void ClearFilters()
+    {
+        StatusFilter = _statusOptions[0];
+        PriorityFilter = _priorityFilterOptions[0];
+        NewTaskTitle = "";
+        // 输入框即搜索框，一并清掉残留的新增校验错误。
+        AddError = "";
     }
 
     /// <summary>
@@ -369,16 +507,30 @@ public class MainWindowViewModel : ViewModelBase
         ApplyFilter();
     }
 
-    /// <summary>按优先级从高到低（稳定）重排展示列表。</summary>
+    /// <summary>
+    /// 按当前排序方式重排展示列表：优先级高→低（默认，保持原行为）、
+    /// 截止日期近→远（无日期排最后）、创建时间新→旧。
+    /// 仅重排权威展示序列 <see cref="_display"/>，过滤视图顺序由随后调用的 ApplyFilter 对齐。
+    /// </summary>
     private void Reorder()
     {
         if (_display.Count < 2)
             return;
 
-        var target = _display
-            .OrderByDescending(v => v.PriorityRank)
-            .ThenBy(v => v.Item.CreatedAt)
-            .ToList();
+        var target = _sortBy.Key switch
+        {
+            SortCreatedAt => _display
+                .OrderByDescending(v => v.Item.CreatedAt)
+                .ToList(),
+            SortDueDate => _display
+                .OrderBy(v => v.Item.DueDate ?? DateTime.MaxValue)
+                .ThenBy(v => v.Item.CreatedAt)
+                .ToList(),
+            _ => _display
+                .OrderByDescending(v => v.PriorityRank)
+                .ThenBy(v => v.Item.CreatedAt)
+                .ToList(),
+        };
 
         var current = _display.ToList();
         for (var i = 0; i < target.Count; i++)
@@ -402,10 +554,10 @@ public class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 重建过滤后的展示列表：叠加"标题搜索 + 当前视图（全部/文件夹/未归类）"两层过滤。
+    /// 重建过滤后的展示列表：依次叠加"标题搜索 + 状态/优先级筛选 + 当前视图（全部/文件夹/未归类）"过滤。
     /// 采用增量 diff：先移除不再命中的项，再按目标顺序补齐/校正，整体不复建。
     /// 避免在全量重建下于 ComboBox 选中回调链内触发集合重置导致重入崩溃。
-    /// 空白搜索与"全部"视图时不额外过滤。
+    /// 空白搜索、状态"全部"、优先级"全部"与"全部"视图时不额外过滤。
     /// </summary>
     private void ApplyFilter()
     {
@@ -421,6 +573,13 @@ public class MainWindowViewModel : ViewModelBase
                 continue;
 
             if (activeKey is not null && activeKey != KeyAll && !IsInView(vm.Item, activeKey))
+                continue;
+
+            if (_statusFilter.Key == StatusIncomplete && vm.Item.IsCompleted)
+                continue;
+            if (_statusFilter.Key == StatusCompleted && !vm.Item.IsCompleted)
+                continue;
+            if (_priorityFilter.Value is not null && vm.Item.Priority != _priorityFilter.Value.Value)
                 continue;
 
             target.Add(vm);
@@ -444,6 +603,11 @@ public class MainWindowViewModel : ViewModelBase
             else if (cur != i)
                 _filterDisplay.Move(cur, i);
         }
+
+        // 空状态派生展示可能随过滤结果变化，统一在此处广播（可见性随本次过滤实时更新）。
+        OnPropertyChanged(nameof(IsEmpty));
+        OnPropertyChanged(nameof(HasActiveFilter));
+        OnPropertyChanged(nameof(EmptyStateText));
     }
 
     private static bool IsInView(TodoItem item, string key)
