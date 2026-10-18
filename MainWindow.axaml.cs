@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Notifications;
@@ -6,6 +8,7 @@ using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 using Avalonia.VisualTree;
 using TodoList.ViewModels;
 
@@ -34,12 +37,109 @@ public partial class MainWindow : Window
         {
             vm.DueAlarm += OnDueAlarm;
             vm.DeleteFolderRequested += OnDeleteFolderRequested;
+            vm.ExportBackupRequested += OnExportBackupRequested;
+            vm.ImportBackupRequested += OnImportBackupRequested;
         }
     }
 
     private void OnDueAlarm(object? sender, DueAlarmEventArgs e)
     {
         _notifications?.Show(new Notification("任务到期", e.Title, NotificationType.Warning));
+    }
+
+    /// <summary>统计弹层打开：重算一次全库口径统计（覆盖时钟跨天/跨周后的口径漂移）。</summary>
+    private void OnStatsFlyoutOpened(object? sender, EventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm)
+            vm.RefreshStats();
+    }
+
+    /// <summary>导出备份：弹保存对话框（带时间戳默认名），取得路径后回调 VM。</summary>
+    private async void OnExportBackupRequested(object? sender, EventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm)
+            return;
+
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel?.StorageProvider is null)
+            return;
+
+        var file = await topLevel.StorageProvider.SaveFilePickerAsync(new FilePickerSaveOptions
+        {
+            Title = "导出备份",
+            SuggestedFileName = $"todolist-backup-{DateTime.Now:yyyyMMdd-HHmmss}.db",
+            DefaultExtension = "db",
+        });
+        vm.ExportBackup(file?.Path.LocalPath);
+    }
+
+    /// <summary>导入备份：弹打开对话框（.db 过滤），选定后弹覆盖确认（当前库自动留 .bak），再回调 VM。</summary>
+    private async void OnImportBackupRequested(object? sender, EventArgs e)
+    {
+        if (DataContext is not MainWindowViewModel vm)
+            return;
+
+        var topLevel = TopLevel.GetTopLevel(this);
+        if (topLevel?.StorageProvider is null)
+            return;
+
+        var files = await topLevel.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "选择备份文件",
+            AllowMultiple = false,
+            FileTypeFilter = new[] { new FilePickerFileType("TodoList 备份") { Patterns = new[] { "*.db" } } },
+        });
+        var path = files.FirstOrDefault()?.Path.LocalPath;
+        if (path is not null && await ConfirmImportOverwrite())
+            vm.ImportBackup(path);
+    }
+
+    /// <summary>导入覆盖确认对话框（复用独立 Window 模式；true=确认覆盖导入）。</summary>
+    private async Task<bool> ConfirmImportOverwrite()
+    {
+        var confirmed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var dialog = new Window
+        {
+            Width = 380,
+            CanResize = false,
+            SizeToContent = SizeToContent.WidthAndHeight,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Title = "导入备份",
+        };
+
+        var message = new TextBlock
+        {
+            Text = "导入将用所选备份覆盖当前数据库（当前数据自动保留为 .bak，导入后需重启应用生效）。确定？",
+            TextWrapping = TextWrapping.Wrap,
+            MaxWidth = 340,
+            Margin = new Thickness(20, 20, 20, 10),
+        };
+
+        var cancel = new Button { Content = "取消", Width = 80 };
+        var ok = new Button { Content = "导入", Width = 80 };
+        var buttons = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 8,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Margin = new Thickness(0, 0, 16, 16),
+            Children = { cancel, ok },
+        };
+        dialog.Content = new StackPanel { Children = { message, buttons } };
+
+        ok.Click += (_, _) =>
+        {
+            confirmed.TrySetResult(true);
+            dialog.Close();
+        };
+        cancel.Click += (_, _) =>
+        {
+            confirmed.TrySetResult(false);
+            dialog.Close();
+        };
+
+        _ = dialog.ShowDialog(this);
+        return await confirmed.Task;
     }
 
     private void OnDeleteFolderRequested(object? sender, DeleteFolderConfirmEventArgs e)

@@ -5,6 +5,7 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Windows.Input;
 using Avalonia.Threading;
+using TodoList.Database;
 using TodoList.Models;
 using TodoList.Repositories;
 
@@ -45,6 +46,9 @@ public sealed record SortOption(string Key, string Label);
 
 /// <summary>主题下拉的单个选项（阶段六 T6.2）。</summary>
 public sealed record ThemeOption(UiTheme Value, string Label);
+
+/// <summary>近 14 天单日完成量条（阶段七统计弹层）：BarWidth 为按期内最大值归一的像素宽。</summary>
+public sealed record CompletionBar(string Label, string CountText, double BarWidth);
 
 /// <summary>
 /// 主窗口 ViewModel。
@@ -139,17 +143,26 @@ public class MainWindowViewModel : ViewModelBase
     private string _addError = "";
     private int _totalCount;
     private int _completedCount;
+    private int _completedToday;
+    private int _completedThisWeek;
+    private int _completedThisMonth;
+    private int _completionRate;
+    private IReadOnlyList<CompletionBar> _recentBars = Array.Empty<CompletionBar>();
+    private string _backupMessage = "";
 
     private StatusOption _statusFilter = _statusOptions[0];
     private PriorityFilterOption _priorityFilter = _priorityFilterOptions[0];
     private SortOption _sortBy = _sortOptions[0];
+    /// <summary>整库备份能力（阶段七）：App 注入 DatabaseService；缺省（测试）时备份命令给出不可用提示。</summary>
+    private readonly IDatabaseBackup? _backup;
 
     public MainWindowViewModel(ITodoRepository repo, Func<UiTheme, bool>? applyTheme = null, UiTheme? initialTheme = null,
-        Func<DateTime>? nowProvider = null)
+        Func<DateTime>? nowProvider = null, IDatabaseBackup? backup = null)
     {
         _repo = repo;
         _now = nowProvider ?? (() => DateTime.Now);
         _applyTheme = applyTheme;
+        _backup = backup;
         _selectedTheme = MatchTheme(initialTheme ?? UiTheme.System);
         _filterView = new ReadOnlyObservableCollection<TodoItemViewModel>(_filterDisplay);
         _sidebarView = new ReadOnlyObservableCollection<SidebarItemViewModel>(_sidebarItems);
@@ -182,6 +195,10 @@ public class MainWindowViewModel : ViewModelBase
         });
         ClearFiltersCommand = new RelayCommand(_ => ClearFilters());
 
+        // 备份（阶段七）：VM 不触碰文件对话框，仅发事件；View 弹对话框后调用 ExportBackup/ImportBackup。
+        ExportBackupCommand = new RelayCommand(_ => ExportBackupRequested?.Invoke(this, EventArgs.Empty));
+        ImportBackupCommand = new RelayCommand(_ => ImportBackupRequested?.Invoke(this, EventArgs.Empty));
+
         // 到期提醒：轻量定时器周期扫描，早于/等于当前时间且未完成的未提醒任务触发系统通知。
         _alarmTimer = new DispatcherTimer { Interval = TimeSpan.FromMinutes(1) };
         _alarmTimer.Tick += OnAlarmTick;
@@ -193,6 +210,12 @@ public class MainWindowViewModel : ViewModelBase
 
     /// <summary>删除文件夹确认请求事件（由 View 层弹出确认框后回调）。</summary>
     public event EventHandler<DeleteFolderConfirmEventArgs>? DeleteFolderRequested;
+
+    /// <summary>导出备份请求事件（由 View 层弹保存对话框，选定路径后调用 <see cref="ExportBackup"/>）。</summary>
+    public event EventHandler? ExportBackupRequested;
+
+    /// <summary>导入备份请求事件（由 View 层弹打开对话框并确认覆盖后调用 <see cref="ImportBackup"/>）。</summary>
+    public event EventHandler? ImportBackupRequested;
 
     /// <summary>任务列表（只读投影，原样）。</summary>
     public ReadOnlyObservableCollection<TodoItem> Items => _repo.Items;
@@ -362,6 +385,28 @@ public class MainWindowViewModel : ViewModelBase
 
     public string StatsText => $"{_completedCount} / {_totalCount}";
 
+    /// <summary>今日完成数（全库口径，按 completed_at 当地日期；旧库 NULL 不计入）。</summary>
+    public int CompletedToday => _completedToday;
+
+    /// <summary>本周完成数（周一起，含今天）。</summary>
+    public int CompletedThisWeek => _completedThisWeek;
+
+    /// <summary>本月完成数（自然月）。</summary>
+    public int CompletedThisMonth => _completedThisMonth;
+
+    /// <summary>完成率百分比（0-100；总任务为 0 时为 0）。</summary>
+    public int CompletionRate => _completionRate;
+
+    /// <summary>近 14 天每日完成量条（今天在最右，天内最大值归一宽度）。</summary>
+    public IReadOnlyList<CompletionBar> RecentCompletionBars => _recentBars;
+
+    /// <summary>最近一次备份操作的结果提示（空=不显示）。</summary>
+    public string BackupMessage
+    {
+        get => _backupMessage;
+        set => SetProperty(ref _backupMessage, value);
+    }
+
     public ICommand AddTaskCommand { get; }
     public ICommand RemoveTaskCommand { get; }
     public ICommand AddFolderCommand { get; }
@@ -372,6 +417,12 @@ public class MainWindowViewModel : ViewModelBase
 
     /// <summary>清除筛选命令：重置状态、优先级与标题搜索（保留排序方式与边栏视图）。</summary>
     public ICommand ClearFiltersCommand { get; }
+
+    /// <summary>导出备份命令：向 View 层发起请求（弹保存对话框后回调 <see cref="ExportBackup"/>）。</summary>
+    public ICommand ExportBackupCommand { get; }
+
+    /// <summary>导入备份命令：向 View 层发起请求（弹打开对话框 + 覆盖确认后回调 <see cref="ImportBackup"/>）。</summary>
+    public ICommand ImportBackupCommand { get; }
 
     private void AddTask()
     {
@@ -722,15 +773,102 @@ public class MainWindowViewModel : ViewModelBase
                 item.ItemCount = total == 0 ? 0 : _repo.Items.Count(t => t.FolderId is null);
     }
 
-    private void RefreshStats()
+    /// <summary>
+    /// 重算全库口径统计（阶段七）：总数/完成数之外，增加完成率、今日/本周/本月完成量与近 14 天条形。
+    /// 本周自周一起、本月为自然月，均依据注入时钟；completed_at 为 NULL（旧库历史完成）不计入日趋势。
+    /// public：供统计弹层打开时刷新一次（时钟跨天/跨周后打开按钮即可取到新口径）。
+    /// </summary>
+    public void RefreshStats()
     {
         _totalCount = _repo.Items.Count;
         _completedCount = 0;
+        _completedToday = 0;
+        _completedThisWeek = 0;
+        _completedThisMonth = 0;
         foreach (var t in _repo.Items)
-            if (t.IsCompleted)
-                _completedCount++;
+        {
+            if (!t.IsCompleted)
+                continue;
+            _completedCount++;
+            if (t.CompletedAt is { } done)
+            {
+                var today = _now().Date;
+                if (done.Date == today)
+                    _completedToday++;
+                var weekStart = today.AddDays(-(((int)today.DayOfWeek + 6) % 7));
+                if (done.Date >= weekStart && done.Date < today.AddDays(1))
+                    _completedThisWeek++;
+                var monthStart = new DateTime(today.Year, today.Month, 1);
+                if (done.Date >= monthStart && done.Date < monthStart.AddMonths(1))
+                    _completedThisMonth++;
+            }
+        }
+        _completionRate = _totalCount == 0 ? 0 : (int)Math.Round(100.0 * _completedCount / _totalCount);
+        _recentBars = BuildRecentBars();
+
         OnPropertyChanged(nameof(TotalCount));
         OnPropertyChanged(nameof(CompletedCount));
         OnPropertyChanged(nameof(StatsText));
+        OnPropertyChanged(nameof(CompletedToday));
+        OnPropertyChanged(nameof(CompletedThisWeek));
+        OnPropertyChanged(nameof(CompletedThisMonth));
+        OnPropertyChanged(nameof(CompletionRate));
+        OnPropertyChanged(nameof(RecentCompletionBars));
+    }
+
+    /// <summary>近 14 天（13 天前到今天）每日完成量条：宽度按期内最大值归一，无完成时为 0 宽。</summary>
+    private List<CompletionBar> BuildRecentBars()
+    {
+        const int barMaxWidth = 120;
+        var today = _now().Date;
+        var days = Enumerable.Range(-13, 14).Select(offset => today.AddDays(offset)).ToList();
+        var counts = days.Select(day => _repo.Items.Count(t => t.CompletedAt?.Date == day)).ToList();
+        var max = counts.Count == 0 ? 0 : counts.Max();
+        var bars = new List<CompletionBar>(days.Count);
+        for (var i = 0; i < days.Count; i++)
+        {
+            bars.Add(new CompletionBar(
+                days[i].ToString("M/d"),
+                counts[i] == 0 ? "" : counts[i].ToString(),
+                max == 0 ? 0 : barMaxWidth * counts[i] / max));
+        }
+        return bars;
+    }
+
+    /// <summary>执行导出备份（View 弹保存对话框、选定路径后调用）。null 路径=用户取消。</summary>
+    public void ExportBackup(string? destinationPath)
+    {
+        if (destinationPath is null)
+        {
+            BackupMessage = "";
+            return;
+        }
+        if (_backup is null)
+        {
+            BackupMessage = "备份功能不可用";
+            return;
+        }
+        BackupMessage = _backup.ExportTo(destinationPath)
+            ? "导出完成"
+            : "导出失败（目标路径可能无权限或被占用）";
+    }
+
+    /// <summary>执行导入备份（View 弹打开对话框并确认覆盖后调用）。null 路径=用户取消。</summary>
+    public void ImportBackup(string? sourcePath)
+    {
+        if (sourcePath is null)
+        {
+            BackupMessage = "";
+            return;
+        }
+        if (_backup is null)
+        {
+            BackupMessage = "备份功能不可用";
+            return;
+        }
+        // 内存投影不热重载：导入只替换库文件，重启后以新权威源载入（避免两份真相冲突）。
+        BackupMessage = _backup.ImportFrom(sourcePath)
+            ? "已导入，重启 TodoList 后生效"
+            : "导入失败：所选文件不是有效的 TodoList 备份";
     }
 }

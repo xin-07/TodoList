@@ -255,12 +255,73 @@
                 </ComboBox>
             </StackPanel>
 
-            <!-- 底部：统计 -->
-            <TextBlock DockPanel.Dock="Bottom"
-                       Margin="0,12,0,0"
-                       HorizontalAlignment="Center"
-                       Foreground="Gray"
-                       Text="{Binding StatsText}" />
+            <!-- 底部：统计与备份（阶段七）：按钮弹层全库口径统计 + 整库备份导出/导入 -->
+            <StackPanel DockPanel.Dock="Bottom"
+                        Margin="0,12,0,0"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Center"
+                        Spacing="10">
+                <Button x:Name="StatsBackupButton" Padding="6,2" ToolTip.Tip="统计与备份">
+                    <Button.Flyout>
+                        <Flyout Placement="Top" Opened="OnStatsFlyoutOpened">
+                            <StackPanel MinWidth="240" Spacing="10">
+                                <TextBlock Text="任务完成" FontWeight="SemiBold" />
+                                <Grid ColumnDefinitions="Auto,Auto,Auto,Auto" ColumnSpacing="14">
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="{Binding CompletionRate, StringFormat=完成率 {0}%}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{Binding CompletedToday, StringFormat=今日 {0}}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="2">
+                                        <TextBlock Text="{Binding CompletedThisWeek, StringFormat=本周 {0}}" />
+                                    </StackPanel>
+                                    <StackPanel Grid.Column="3">
+                                        <TextBlock Text="{Binding CompletedThisMonth, StringFormat=本月 {0}}" />
+                                    </StackPanel>
+                                </Grid>
+                                <TextBlock Text="近 14 天完成量" FontWeight="SemiBold" />
+                                <ItemsControl ItemsSource="{Binding RecentCompletionBars}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:CompletionBar">
+                                            <Grid ColumnDefinitions="44,120,Auto"
+                                                  ColumnSpacing="6"
+                                                  MinHeight="14"
+                                                  VerticalAlignment="Center">
+                                                <TextBlock Grid.Column="0" Text="{Binding Label}" FontSize="11" Foreground="Gray" VerticalAlignment="Center" />
+                                                <Border Grid.Column="1"
+                                                        HorizontalAlignment="Left"
+                                                        Height="8"
+                                                        CornerRadius="2"
+                                                        MinWidth="0"
+                                                        Width="{Binding BarWidth}"
+                                                        Background="{DynamicResource SystemControlForegroundAccentBrush}"
+                                                        VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="2" Text="{Binding CountText}" FontSize="11" VerticalAlignment="Center" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <Separator />
+                                <TextBlock Text="备份" FontWeight="SemiBold" />
+                                <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                                    <Button Grid.Column="0" Content="导出备份" Command="{Binding ExportBackupCommand}" MinWidth="90" />
+                                    <Button Grid.Column="1" Content="导入备份…" Command="{Binding ImportBackupCommand}" MinWidth="90" />
+                                </Grid>
+                                <TextBlock Text="{Binding BackupMessage}"
+                                           TextWrapping="Wrap"
+                                           FontSize="11"
+                                           Foreground="Gray"
+                                           IsVisible="{Binding BackupMessage, Converter={x:Static c:StringConverters.IsNotNullOrEmpty}}" />
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                    <TextBlock Text="📊 统计与备份" Foreground="Gray" />
+                </Button>
+                <TextBlock VerticalAlignment="Center"
+                           Foreground="Gray"
+                           Text="{Binding StatsText}" />
+            </StackPanel>
 
             <!-- 中部：列对齐的表头
                  Width 绑定列表滚动区的实际内容宽度（Extent.Width = 视口宽 - 竖向滚动条宽），

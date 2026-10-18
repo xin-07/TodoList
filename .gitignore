@@ -8,6 +8,8 @@ dist/
 
 ## Runtime data (SQLite 数据库，不入库)
 data/
+## 备份导出快照（用户数据备份，不入库）
+todolist-backup-*.db
 
 ## Visual Studio
 .vs/

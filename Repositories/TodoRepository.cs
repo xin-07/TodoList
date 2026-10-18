@@ -18,14 +18,17 @@ namespace TodoList.Repositories;
 public class TodoRepository : ITodoRepository
 {
     private readonly DatabaseService _db;
+    /// <summary>可注入时钟，默认系统当前时间；完成时间（completed_at）写入据此可测。</summary>
+    private readonly Func<DateTime> _now;
     private readonly ObservableCollection<TodoItem> _items;
     private readonly ReadOnlyObservableCollection<TodoItem> _itemsView;
     private readonly ObservableCollection<MyFolder> _folders;
     private readonly ReadOnlyObservableCollection<MyFolder> _foldersView;
 
-    public TodoRepository(DatabaseService db)
+    public TodoRepository(DatabaseService db, Func<DateTime>? nowProvider = null)
     {
         _db = db;
+        _now = nowProvider ?? (() => DateTime.Now);
         // 启动时从权威源(SQLite)读取全量，构建投影。
         _items = new ObservableCollection<TodoItem>(_db.LoadAll().OrderBy(t => t.CreatedAt));
         _itemsView = new ReadOnlyObservableCollection<TodoItem>(_items);
@@ -140,10 +143,10 @@ public class TodoRepository : ITodoRepository
 
     public void SetCompleted(string id, bool isCompleted)
     {
-        // [DEFERRED 2026-10-18 阶段三周期性任务暂缓（用户决定）] 滚动分支注释停用；
-        // 重新启用：解开下段注释，并同步解开 MainWindow.axaml 内"重复"UI 注释块；
-        // 悬空的周期规则（库中已设）在停用期间不会触发，完成一律按普通任务定格。
-        // 4 个滚动行为测试带 Skip 挂起（RecurrenceTests.cs），随本分支一起恢复。
+        // [DEFERRED 2026-10-18 阶段三周期性任务暂缓（用户决定）] 滚动分支注释停用。
+        // 重新启用：1) 解开下段注释；2) 解开 MainWindow.axaml 内"重复"UI 注释块；
+        // 3) RecurrenceTests.cs 中 4 个滚动用例移除 Skip；
+        // 4) TryRollRecurrence 内 `_db.UpdateCompleted(item.Id, true)` 改为 `_db.UpdateCompleted(item.Id, true, _now())`（阶段七 completed_at 契约后签名已变）。
         /*
         if (isCompleted && TryRollRecurrence(id, out var rolled))
         {
@@ -152,13 +155,17 @@ public class TodoRepository : ITodoRepository
         }
         */
 
+        // 完成时间与完成状态同一语句写库：完成时为注入时钟当前时间，取消完成时置 NULL（阶段七契约）。
         // 先写权威源。
-        _db.UpdateCompleted(id, isCompleted);
+        _db.UpdateCompleted(id, isCompleted, isCompleted ? _now() : null);
 
         // 同步投影中的同一对象引用。
         var item = _items.FirstOrDefault(t => t.Id == id);
         if (item is not null)
+        {
             item.IsCompleted = isCompleted;
+            item.CompletedAt = isCompleted ? _now() : null;
+        }
 
         Changed?.Invoke();
     }
@@ -178,15 +185,17 @@ public class TodoRepository : ITodoRepository
         if (item is null || item.Recurrence == RecurrenceType.None || !item.DueDate.HasValue)
             return false;
 
-        // 次数取尽：不再滚动，完成定格并清除周期规则。
+        // 次数取尽：不再滚动，完成定格并清除周期规则（完成时间由注入时钟提供，阶段七契约）。
         if (item.RecurrenceRemaining == 1)
         {
             _db.UpdateRecurrence(item.Id, RecurrenceType.None, 1, null);
-            _db.UpdateCompleted(item.Id, true);
+            var done = _now();
+            _db.UpdateCompleted(item.Id, true, done);
 
             item.Recurrence = RecurrenceType.None;
             item.RecurrenceInterval = 1;
             item.RecurrenceRemaining = null;
+            item.CompletedAt = done;
             item.IsCompleted = true;
             rolled = item;
             return true;

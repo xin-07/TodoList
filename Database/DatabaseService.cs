@@ -12,9 +12,10 @@ namespace TodoList.Database;
 /// 仅本类直接与 SQLite 打交道；
 /// 上层 Repository 通过它读写，保证"单一权威源"落在数据库文件上。
 /// </summary>
-public class DatabaseService
+public class DatabaseService : IDatabaseBackup
 {
     private readonly string _connectionString;
+    private readonly string _dbPath;
 
     public DatabaseService(string dbPath)
     {
@@ -25,8 +26,12 @@ public class DatabaseService
             DataSource = dbPath,
             Mode = SqliteOpenMode.ReadWriteCreate,
         }.ToString();
+        _dbPath = dbPath;
         Initialize();
     }
+
+    /// <summary>当前权威库文件路径（只读，备份用）。</summary>
+    public string DbFilePath => _dbPath;
 
     private SqliteConnection OpenConnection()
     {
@@ -53,7 +58,8 @@ public class DatabaseService
                     folder_id   TEXT NULL,
                     recurrence  TEXT NOT NULL DEFAULT 'None',
                     recurrence_interval INTEGER NOT NULL DEFAULT 1,
-                    recurrence_remaining INTEGER NULL
+                    recurrence_remaining INTEGER NULL,
+                    completed_at TEXT NULL
                 );
                 CREATE TABLE IF NOT EXISTS folder (
                     id          TEXT PRIMARY KEY,
@@ -70,6 +76,7 @@ public class DatabaseService
         EnsureColumn(conn, "recurrence", "TEXT NOT NULL DEFAULT 'None'");
         EnsureColumn(conn, "recurrence_interval", "INTEGER NOT NULL DEFAULT 1");
         EnsureColumn(conn, "recurrence_remaining", "INTEGER NULL");
+        EnsureColumn(conn, "completed_at", "TEXT NULL");
 
         // folder_id 查询索引：提升"按文件夹归类"类查询性能。置于补列之后，确保旧库先有该列再建索引。
         using (var idx = conn.CreateCommand())
@@ -110,7 +117,7 @@ public class DatabaseService
         var result = new List<TodoItem>();
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT id, title, is_completed, created_at, priority, due_date, folder_id, recurrence, recurrence_interval, recurrence_remaining FROM tasks;";
+        cmd.CommandText = "SELECT id, title, is_completed, created_at, priority, due_date, folder_id, recurrence, recurrence_interval, recurrence_remaining, completed_at FROM tasks;";
         using var reader = cmd.ExecuteReader();
         while (reader.Read())
         {
@@ -142,6 +149,7 @@ public class DatabaseService
                 Recurrence = recurrence,
                 RecurrenceInterval = reader.GetInt64(8) >= 1 ? (int)reader.GetInt64(8) : 1,
                 RecurrenceRemaining = reader.IsDBNull(9) ? null : (int)Math.Max(1, reader.GetInt64(9)),
+                CompletedAt = reader.IsDBNull(10) ? null : ParseDate(reader.GetString(10)),
             });
         }
         return result;
@@ -171,12 +179,19 @@ public class DatabaseService
         cmd.ExecuteNonQuery();
     }
 
-    public void UpdateCompleted(string id, bool isCompleted)
+    /// <summary>
+    /// 写入完成状态。isCompleted=true 时 completedAt 为完成时间（由仓库注入时钟提供）；
+    /// false 时取消完成并置 NULL。completedAt 与完成状态同一语句写入，保持一致。
+    /// </summary>
+    public void UpdateCompleted(string id, bool isCompleted, DateTime? completedAt)
     {
         using var conn = OpenConnection();
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "UPDATE tasks SET is_completed = $is_completed WHERE id = $id;";
+        cmd.CommandText = "UPDATE tasks SET is_completed = $is_completed, completed_at = $completed_at WHERE id = $id;";
         cmd.Parameters.AddWithValue("$is_completed", isCompleted ? 1 : 0);
+        cmd.Parameters.AddWithValue("$completed_at", isCompleted && completedAt.HasValue
+            ? completedAt.Value.ToString("o")
+            : DBNull.Value);
         cmd.Parameters.AddWithValue("$id", id);
         cmd.ExecuteNonQuery();
     }
@@ -257,6 +272,86 @@ public class DatabaseService
         cmd.Parameters.AddWithValue("$remaining", (object?)remaining ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$id", id);
         cmd.ExecuteNonQuery();
+    }
+
+    /// <summary>把当前库文件复制为 destPath 处的副本（覆盖已存在的目标；先清连接池释放 Windows 文件句柄）。</summary>
+    public bool ExportTo(string destPath)
+    {
+        try
+        {
+            SqliteConnection.ClearAllPools();
+            File.Copy(_dbPath, destPath, overwrite: true);
+            return true;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+        catch (System.Security.SecurityException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// 用 sourcePath 的备份替换当前库：校验源 → 当前库改名保留 .bak → 复制替换；
+    /// 复制失败时把 .bak 移回原位恢复。内存投影不热重载（调用方提示重启生效）。
+    /// </summary>
+    public bool ImportFrom(string sourcePath)
+    {
+        try
+        {
+            if (!IsValidBackupFile(sourcePath))
+                return false;
+
+            SqliteConnection.ClearAllPools();
+            var bakPath = _dbPath + ".bak";
+            if (File.Exists(_dbPath))
+                File.Move(_dbPath, bakPath, overwrite: true);
+
+            try
+            {
+                File.Copy(sourcePath, _dbPath, overwrite: true);
+                return true;
+            }
+            catch (IOException)
+            {
+                // 复制失败：把留存的 .bak 移回原位，尽力恢复原状。
+                if (File.Exists(bakPath) && !File.Exists(_dbPath))
+                    File.Move(bakPath, _dbPath, overwrite: true);
+                return false;
+            }
+        }
+        catch (IOException)
+        {
+            return false;
+        }
+    }
+
+    /// <summary>校验 sourcePath 存在且含 tasks 表（防误选任意文件）。</summary>
+    public bool IsValidBackupFile(string sourcePath)
+    {
+        try
+        {
+            if (!File.Exists(sourcePath))
+                return false;
+
+            var sourceConnStr = new SqliteConnectionStringBuilder
+            {
+                DataSource = sourcePath,
+                Mode = SqliteOpenMode.ReadOnly,
+            }.ToString();
+            using var conn = new SqliteConnection(sourceConnStr);
+            conn.Open();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'tasks';";
+            return Convert.ToInt64(cmd.ExecuteScalar()) > 0;
+        }
+        catch (Microsoft.Data.Sqlite.SqliteException)
+        {
+            // 非合法 SQLite 文件：视为无效备份。
+            return false;
+        }
     }
 
     /// <summary>读取全部文件夹（按 Id 排序，保持稳定顺序）。</summary>

@@ -15,6 +15,7 @@ public class TodoItem : ViewModelBase
     private RecurrenceType _recurrence;
     private int _recurrenceInterval = 1;
     private int? _recurrenceRemaining;
+    private DateTime? _completedAt;
     private string _title = "";
     private string? _folderId;
 
@@ -71,6 +72,16 @@ public class TodoItem : ViewModelBase
     {
         get => _recurrenceRemaining;
         set => SetProperty(ref _recurrenceRemaining, value);
+    }
+
+    /// <summary>
+    /// 完成时间（null=未完成，或旧库中缺少记录的历史完成任务——按用户口径 A 不回填、不计入日趋势）。
+    /// 仅允许 Repository 写入。
+    /// </summary>
+    public DateTime? CompletedAt
+    {
+        get => _completedAt;
+        set => SetProperty(ref _completedAt, value);
     }
 
     /// <summary>所属文件夹 Id（null = 未归类）。单归属；仅允许 Repository 写入。</summary>

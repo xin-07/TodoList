@@ -17,8 +17,9 @@
 - 输入校验：新增与编辑统一校验（空 / 去空白 / 标题超长 100 字符、文件夹名超长 50 字符）
 - 完成置灰展示
 - 已办 / 总数统计
+- 统计与备份：底部入口弹层展示全库口径完成率、今日/本周/本月完成数与近 14 天每日完成量条形（打开及数据变更后即时刷新，时钟可注入）；「导出备份」将 SQLite 整库复制为带时间戳副本（零损耗快照）；「导入备份」校验源文件后覆盖当前库（替换前自动留 `.bak`），重启应用生效，非法源文件拒绝且原库不变
 - 任务列表超出窗口高度时上下滚动
-- 单元/集成测试共 81 个（其中 4 个随周期任务停用挂起 Skip；隔离临时 SQLite，不触碰 `data/todo.db`）：`TodoRepository` 覆盖任务与文件夹增删改、归属、联删与旧库迁移；另有通知属性/增量过滤回归、到期逻辑（注入时钟）单测，以及数据路径解析（开发 / Windows·macOS 发布 / Linux 发布）与 config.json 读取用例；另有阶段四筛选/排序/空状态/清除筛选回归用例；阶段三周期性任务已注释停用（规则引擎/仓库 12 用例照常，滚动 4 用例挂 Skip）；阶段六主题读写（宽容回退/保留 data 节/round-trip/下拉接线）回归用例
+- 单元/集成测试共 90 个（其中 4 个随周期任务停用挂起 Skip；隔离临时 SQLite，不触碰 `data/todo.db`）：`TodoRepository` 覆盖任务与文件夹增删改、归属、联删与旧库迁移；另有通知属性/增量过滤回归、到期逻辑（注入时钟）单测，以及数据路径解析（开发 / Windows·macOS 发布 / Linux 发布）与 config.json 读取用例；另有阶段四筛选/排序/空状态/清除筛选回归用例；阶段三周期性任务已注释停用（规则引擎/仓库 12 用例照常，滚动 4 用例挂 Skip）；阶段六主题读写（宽容回退/保留 data 节/round-trip/下拉接线）与阶段七统计备份（completed_at 契约/统计口径/导出导入恢复）回归用例
 
 ## 🔧 技术栈
 
@@ -93,8 +94,9 @@ TodoList/
 │   ├── app.png
 │   └── app.svg
 ├── Database                                           # SQLite 数据访问层与数据路径权威源。
-│   ├── DatabaseService.cs                             # SQLite 数据访问层：负责建库建表，以及底层增删改查 SQL。
-│   └── DataPaths.cs                                   # 配置与数据路径的"单一权威源"：读/写 config.json（data 节与 appearance.theme），推导各平台数据库落点（可注入、可单测）。
+│   ├── DatabaseService.cs                             # SQLite 数据访问层：负责建库建表，以及底层增删改查 SQL；实现整库备份导出/导入（IDatabaseBackup：ExportTo/ImportFrom + 源校验 + .bak）。
+│   ├── DataPaths.cs                                   # 配置与数据路径的"单一权威源"：读/写 config.json（data 节与 appearance.theme），推导各平台数据库落点（可注入、可单测）。
+│   └── IDatabaseBackup.cs                             # 整库备份能力接口：ViewModel 只消费该抽象，不触碰文件细节。
 ├── dist                                               # 发布产物（已 gitignore）：便携单文件 + Linux 原生安装包。
 │   ├── linux
 │   │   ├── alpine.3.18-x64
@@ -149,11 +151,12 @@ TodoList/
 │       ├── DataPathsTests.cs                          # 数据路径解析与 config.json 读取单测（注入平台与环境变量）。
 │       ├── FilterSortAndEmptyStateTests.cs             # 阶段四筛选/排序/空状态/清除筛选回归用例。
 │       ├── RecurrenceTests.cs                          # 阶段三周期任务（已注释停用）：规则引擎/仓库回归 12 用例 + 滚动 4 用例挂 Skip。
+│       ├── StatsAndBackupTests.cs                      # 阶段七统计与备份：completed_at 契约（写入/清 NULL/旧库 NULL 不计日趋势）、全库口径统计（今日/周/月/率/14 天分桶）、导出副本与导入替换/.bak/非法源拒绝、VM 备份消息与命令事件。
 │       ├── ThemeSettingsTests.cs                       # 阶段六主题设置：宽容读取回退、写回保留 data 节、round-trip、下拉接线用例。
 │       ├── TodoList.Tests.csproj
 │       └── TodoRepositoryTests.cs                     # 任务与文件夹用例，使用临时 SQLite，不触碰 data/todo.db。
 ├── ViewModels                                         # MVVM 视图模型层：主窗口 VM、边栏项 VM、行 VM、命令与基类。
-│   ├── MainWindowViewModel.cs                         # 主窗口 ViewModel：消费仓库只读投影，负责三视图过滤/搜索/统计与到期提醒。
+│   ├── MainWindowViewModel.cs                         # 主窗口 ViewModel：消费仓库只读投影，负责三视图过滤/搜索、统计（全库口径 + 近 14 天条形）、备份请求与到期提醒。
 │   ├── RelayCommand.cs                                # 极简 ICommand 实现，避免引入额外 MVVM 框架。
 │   ├── SidebarItemViewModel.cs                        # 边栏项 ViewModel：全部/文件夹/未归类三态视图、文件夹原地重命名与条目数。
 │   ├── TodoItemViewModel.cs                           # 行 ViewModel：承载行内编辑状态与优先级/截止日期/文件夹归属派生展示。
@@ -168,7 +171,7 @@ TodoList/
 ├── CLAUDE.md
 ├── config.json
 ├── MainWindow.axaml
-├── MainWindow.axaml.cs                                # 主窗口代码后置：到期通知、回车快速添加、行内编辑/截止日期/文件夹交互键盘与失焦事件、删除文件夹确认框。
+├── MainWindow.axaml.cs                                # 主窗口代码后置：到期通知、回车快速添加、行内编辑/截止日期/文件夹交互键盘与失焦事件、删除文件夹确认框、统计弹层打开刷新与备份导出/导入文件对话框。
 ├── Program.cs                                         # Avalonia 程序入口：构建 App 并启动桌面生命周期。
 ├── README.md
 ├── TodoList.csproj

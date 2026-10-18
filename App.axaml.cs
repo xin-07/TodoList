@@ -43,7 +43,8 @@ public partial class App : Application
                         Application.Current!.RequestedThemeVariant = MapThemeVariant(theme);
                         return DataPaths.WriteTheme(programRoot, theme);
                     },
-                    initialTheme),
+                    initialTheme,
+                    backup: db),
             };
         }
 
