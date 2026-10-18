@@ -1,6 +1,9 @@
 using System;
 using System.IO;
+using System.Text.Encodings.Web;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using TodoList.Models;
 
 namespace TodoList.Database;
 
@@ -96,6 +99,73 @@ public static class DataPaths
         }
 
         return Path.Combine(homeDirectory, ".local", "share");
+    }
+
+    /// <summary>config.json 中外观节的权威键面：appearance.theme。</summary>
+    public const string ThemeSectionName = "appearance";
+    public const string ThemeKeyName = "theme";
+    public const string DefaultThemeName = nameof(UiTheme.System);
+
+    /// <summary>
+    /// 读取 UI 主题设置（appearance.theme，宽容回退）：
+    /// config.json / appearance 节 / theme 键缺失，或值不是合法枚举名（忽略大小写）时，回退 <see cref="UiTheme.System"/>。
+    /// config.json 存在但 JSON 损坏时抛异常，与 <see cref="ReadDataSettings"/> 的既有行为一致（不为单键特判）。
+    /// </summary>
+    public static UiTheme ReadTheme(string programRoot)
+    {
+        var configPath = Path.Combine(programRoot, "config.json");
+        if (!File.Exists(configPath))
+            return UiTheme.System;
+
+        using var doc = JsonDocument.Parse(File.ReadAllText(configPath));
+        if (!doc.RootElement.TryGetProperty(ThemeSectionName, out var section)
+            || section.ValueKind != JsonValueKind.Object
+            || !section.TryGetProperty(ThemeKeyName, out var value)
+            || value.ValueKind != JsonValueKind.String)
+        {
+            return UiTheme.System;
+        }
+
+        return Enum.TryParse<UiTheme>(value.GetString(), ignoreCase: true, out var theme)
+            && Enum.IsDefined(theme)
+            ? theme
+            : UiTheme.System;
+    }
+
+    /// <summary>
+    /// 写入 UI 主题设置到 config.json 的 appearance.theme。
+    /// 保守写入：经 <see cref="JsonNode"/> 只增改该键，完整保留 data 等其他既有节；
+    /// 文件不存在时创建仅含该键的配置。返回是否成功（解析失败等场景返回 false，不动原文件）。
+    /// </summary>
+    public static bool WriteTheme(string programRoot, UiTheme theme)
+    {
+        try
+        {
+            var configPath = Path.Combine(programRoot, "config.json");
+            var root = File.Exists(configPath)
+                ? JsonNode.Parse(File.ReadAllText(configPath)) ?? new JsonObject()
+                : new JsonObject();
+
+            if (root[ThemeSectionName] is not JsonObject section)
+            {
+                section = new JsonObject();
+                root[ThemeSectionName] = section;
+            }
+
+            section[ThemeKeyName] = theme.ToString();
+
+            File.WriteAllText(configPath, root.ToJsonString(new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+            }));
+            return true;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            // 原文件损坏或不可解析：不写，保全用户文件。
+            return false;
+        }
     }
 
     private static string ReadString(JsonElement element, string property, string fallback)

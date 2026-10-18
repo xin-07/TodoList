@@ -3,7 +3,9 @@ using System.IO;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Avalonia.Styling;
 using TodoList.Database;
+using TodoList.Models;
 using TodoList.Repositories;
 using TodoList.ViewModels;
 
@@ -22,31 +24,52 @@ public partial class App : Application
         {
             // 装配：SQLite(单一权威源) → Repository → ViewModel。
             // 数据路径由 config.json 单一权威定义，禁止此处硬编码。
-            var db = new DatabaseService(ResolveDatabasePath());
+            var projectRoot = TryFindProjectRoot();
+            var programRoot = projectRoot ?? ResolveExecutableDirectory();
+            var db = new DatabaseService(ResolveDatabasePath(programRoot, isDevelopment: projectRoot is not null));
             var repo = new TodoRepository(db);
+
+            // 主题（阶段六）：启动读 config.json（宽容回退跟随系统）；初始值同时注入 VM（下拉匹配显示），
+            // 运行时切换经注入回调完成"切变体 + 写盘"。
+            var initialTheme = DataPaths.ReadTheme(programRoot);
+            Application.Current!.RequestedThemeVariant = MapThemeVariant(initialTheme);
+
             desktop.MainWindow = new MainWindow
             {
-                DataContext = new MainWindowViewModel(repo),
+                DataContext = new MainWindowViewModel(
+                    repo,
+                    theme =>
+                    {
+                        Application.Current!.RequestedThemeVariant = MapThemeVariant(theme);
+                        return DataPaths.WriteTheme(programRoot, theme);
+                    },
+                    initialTheme),
             };
         }
 
         base.OnFrameworkInitializationCompleted();
     }
 
+    /// <summary>把主题枚举映射为 Avalonia ThemeVariant（Default=跟随系统明暗设置）。</summary>
+    private static ThemeVariant MapThemeVariant(UiTheme theme) => theme switch
+    {
+        UiTheme.Light => ThemeVariant.Light,
+        UiTheme.Dark => ThemeVariant.Dark,
+        _ => ThemeVariant.Default,
+    };
+
     /// <summary>
     /// 解析数据库绝对路径。
     /// 配置读自**程序根**（项目根 ?? exe 目录）的 config.json（单一权威源），与数据根分开计算；
     /// 数据落点规则（开发 / 发布·Linux / 发布·Windows·macOS）由 <see cref="DataPaths"/> 权威定义。
     /// </summary>
-    private static string ResolveDatabasePath()
+    private static string ResolveDatabasePath(string programRoot, bool isDevelopment)
     {
-        var projectRoot = TryFindProjectRoot();
-        var programRoot = projectRoot ?? ResolveExecutableDirectory();
         var settings = DataPaths.ReadDataSettings(programRoot);
 
         var dbPath = DataPaths.ResolveDatabasePath(
             programRoot,
-            isDevelopment: projectRoot is not null,
+            isDevelopment: isDevelopment,
             platform: DataPaths.DetectHostPlatform(),
             xdgDataHome: Environment.GetEnvironmentVariable("XDG_DATA_HOME"),
             homeDirectory: Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),

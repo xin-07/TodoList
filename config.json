@@ -3,5 +3,8 @@
     "directory": "data",
     "dbFileName": "todo.db",
     "userDataDirectoryName": "todolist"
+  },
+  "appearance": {
+    "theme": "System"
   }
 }

@@ -12,12 +12,13 @@
 - 优先级：无 / 低 / 中 / 高 四档，行首高亮条，列表默认按优先级从高到低排序（可切换按截止日期/创建时间排序）
 - 截止日期：严格 `yyyy-MM-dd` 格式校验，输入框占位提示当天日期，到期展示「今天到期 / 已过期」
 - 到期桌面通知提醒（应用运行期间每分钟检查未完成且已到期的任务；到期判断由可注入时钟驱动，便于测试）
+- 主题：跟随系统（默认）/ 浅色 / 深色，工具条右侧下拉切换，即时生效并写入 `config.json`（`appearance.theme`）重启保留；写回完整保留其余配置节（如 `data`），配置损坏或键缺失时宽容回退跟随系统
 - 全局异常日志：未处理异常自动落盘输出目录 `logs/`（`crash-日期.log`，追加写盘），便于离线诊断
 - 输入校验：新增与编辑统一校验（空 / 去空白 / 标题超长 100 字符、文件夹名超长 50 字符）
 - 完成置灰展示
 - 已办 / 总数统计
 - 任务列表超出窗口高度时上下滚动
-- 单元/集成测试共 56 个（隔离临时 SQLite，不触碰 `data/todo.db`）：`TodoRepository` 覆盖任务与文件夹增删改、归属、联删与旧库迁移；另有通知属性/增量过滤回归、到期逻辑（注入时钟）单测，以及数据路径解析（开发 / Windows·macOS 发布 / Linux 发布）与 config.json 读取用例；另有阶段四筛选/排序/空状态/清除筛选回归用例
+- 单元/集成测试共 81 个（其中 4 个随周期任务停用挂起 Skip；隔离临时 SQLite，不触碰 `data/todo.db`）：`TodoRepository` 覆盖任务与文件夹增删改、归属、联删与旧库迁移；另有通知属性/增量过滤回归、到期逻辑（注入时钟）单测，以及数据路径解析（开发 / Windows·macOS 发布 / Linux 发布）与 config.json 读取用例；另有阶段四筛选/排序/空状态/清除筛选回归用例；阶段三周期性任务已注释停用（规则引擎/仓库 12 用例照常，滚动 4 用例挂 Skip）；阶段六主题读写（宽容回退/保留 data 节/round-trip/下拉接线）回归用例
 
 ## 🔧 技术栈
 
@@ -93,7 +94,7 @@ TodoList/
 │   └── app.svg
 ├── Database                                           # SQLite 数据访问层与数据路径权威源。
 │   ├── DatabaseService.cs                             # SQLite 数据访问层：负责建库建表，以及底层增删改查 SQL。
-│   └── DataPaths.cs                                   # 配置与数据路径的"单一权威源"：读 config.json，推导各平台数据库落点（可注入、可单测）。
+│   └── DataPaths.cs                                   # 配置与数据路径的"单一权威源"：读/写 config.json（data 节与 appearance.theme），推导各平台数据库落点（可注入、可单测）。
 ├── dist                                               # 发布产物（已 gitignore）：便携单文件 + Linux 原生安装包。
 │   ├── linux
 │   │   ├── alpine.3.18-x64
@@ -147,6 +148,8 @@ TodoList/
 │       ├── B6ClockInjectionTests.cs                   # 到期逻辑（注入时钟）单测。
 │       ├── DataPathsTests.cs                          # 数据路径解析与 config.json 读取单测（注入平台与环境变量）。
 │       ├── FilterSortAndEmptyStateTests.cs             # 阶段四筛选/排序/空状态/清除筛选回归用例。
+│       ├── RecurrenceTests.cs                          # 阶段三周期任务（已注释停用）：规则引擎/仓库回归 12 用例 + 滚动 4 用例挂 Skip。
+│       ├── ThemeSettingsTests.cs                       # 阶段六主题设置：宽容读取回退、写回保留 data 节、round-trip、下拉接线用例。
 │       ├── TodoList.Tests.csproj
 │       └── TodoRepositoryTests.cs                     # 任务与文件夹用例，使用临时 SQLite，不触碰 data/todo.db。
 ├── ViewModels                                         # MVVM 视图模型层：主窗口 VM、边栏项 VM、行 VM、命令与基类。

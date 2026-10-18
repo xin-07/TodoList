@@ -43,6 +43,9 @@ public sealed record PriorityFilterOption(TaskPriority? Value, string Label);
 /// <summary>排序方式下拉的单个选项。</summary>
 public sealed record SortOption(string Key, string Label);
 
+/// <summary>主题下拉的单个选项（阶段六 T6.2）。</summary>
+public sealed record ThemeOption(UiTheme Value, string Label);
+
 /// <summary>
 /// 主窗口 ViewModel。
 ///
@@ -93,9 +96,23 @@ public class MainWindowViewModel : ViewModelBase
         new SortOption(SortCreatedAt, "创建时间"),
     };
 
+    /// <summary>主题下拉选项（单一权威定义，阶段六）。</summary>
+    private static readonly IReadOnlyList<ThemeOption> _themeOptions = new[]
+    {
+        new ThemeOption(UiTheme.System, "跟随系统"),
+        new ThemeOption(UiTheme.Light, "浅色"),
+        new ThemeOption(UiTheme.Dark, "深色"),
+    };
+
     private readonly ITodoRepository _repo;
     /// <summary>可注入时钟，默认系统当前时间；到期提醒扫描据此可测。</summary>
     private readonly Func<DateTime> _now;
+    /// <summary>
+    /// 可注入的主题应用回调（阶段六）：输入目标主题，完成"切换 Avalonia ThemeVariant + 写 config.json"。
+    /// 由 App 装配；缺省（测试）时主题下拉只更新本地选择，不落盘。
+    /// </summary>
+    private readonly Func<UiTheme, bool>? _applyTheme;
+    private ThemeOption _selectedTheme;
     private readonly Dictionary<string, TodoItemViewModel> _vmById = new();
     private readonly Dictionary<string, SidebarItemViewModel> _folderSidebarById = new();
     /// <summary>上次重建边栏时的文件夹快照（Id+Name），用于判断是否需要重建。</summary>
@@ -127,10 +144,13 @@ public class MainWindowViewModel : ViewModelBase
     private PriorityFilterOption _priorityFilter = _priorityFilterOptions[0];
     private SortOption _sortBy = _sortOptions[0];
 
-    public MainWindowViewModel(ITodoRepository repo, Func<DateTime>? nowProvider = null)
+    public MainWindowViewModel(ITodoRepository repo, Func<UiTheme, bool>? applyTheme = null, UiTheme? initialTheme = null,
+        Func<DateTime>? nowProvider = null)
     {
         _repo = repo;
         _now = nowProvider ?? (() => DateTime.Now);
+        _applyTheme = applyTheme;
+        _selectedTheme = MatchTheme(initialTheme ?? UiTheme.System);
         _filterView = new ReadOnlyObservableCollection<TodoItemViewModel>(_filterDisplay);
         _sidebarView = new ReadOnlyObservableCollection<SidebarItemViewModel>(_sidebarItems);
         _folderChoicesView = new ReadOnlyObservableCollection<SidebarItemViewModel>(_folderChoices);
@@ -291,6 +311,31 @@ public class MainWindowViewModel : ViewModelBase
             ApplyFilter();
         }
     }
+
+    /// <summary>主题下拉选项。</summary>
+    public IReadOnlyList<ThemeOption> ThemeOptions => _themeOptions;
+
+    /// <summary>
+    /// 当前主题选择（下拉双向绑定，阶段六 T6.2）。
+    /// 变更时经注入回调执行"切 Avalonia ThemeVariant + 写 config.json（best-effort）"；
+    /// 回调缺省（测试/无装配）时仅更新本地选择，不落盘。
+    /// </summary>
+    public ThemeOption SelectedTheme
+    {
+        get => _selectedTheme;
+        set
+        {
+            if (value is null || _selectedTheme == value)
+                return;
+            _selectedTheme = value;
+            OnPropertyChanged();
+            _applyTheme?.Invoke(value.Value);
+        }
+    }
+
+    /// <summary>把主题枚举映射到下拉选项实例（未知值兜底"跟随系统"）。</summary>
+    private static ThemeOption MatchTheme(UiTheme value)
+        => _themeOptions.FirstOrDefault(o => o.Value == value) ?? _themeOptions[0];
 
     /// <summary>展示列表是否为空（驱动空状态引导可见性；变更通知由 ApplyFilter 统一发出）。</summary>
     public bool IsEmpty => _filterDisplay.Count == 0;

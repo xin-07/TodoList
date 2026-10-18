@@ -239,6 +239,20 @@
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
+
+                <!-- 主题（阶段六 T6.2）：切换即时生效并写入 config.json；"跟随系统"跟随操作系统明暗 -->
+                <TextBlock Text="主题"
+                           VerticalAlignment="Center"
+                           Foreground="Gray" />
+                <ComboBox MinWidth="90"
+                          ItemsSource="{Binding ThemeOptions}"
+                          SelectedItem="{Binding SelectedTheme}">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ThemeOption">
+                            <TextBlock Text="{Binding Label}" />
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
             </StackPanel>
 
             <!-- 底部：统计 -->
