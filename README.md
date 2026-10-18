@@ -125,13 +125,14 @@ TodoList/
 │       │   └── hardening-fixes-DONE.md                # 加固修复 SPEC：全局异常日志、定时器守卫、增量过滤、发布版数据落盘与迁移、时间注入。
 │       └── release
 │           └── native-linux-installers-IN_PROGRESS.md # Linux 原生安装包 SPEC：五发行版 deb/rpm/apk、包内布局与依赖、Linux 数据落 XDG 目录。
-├── Models                                             # 数据模型层：任务与文件夹模型、优先级枚举、标题/文件夹名/截止日期校验助手。
+├── Models                                             # 数据模型层：任务与文件夹模型、优先级枚举、标题/文件夹名/截止日期校验助手、主题枚举。
 │   ├── DueDate.cs                                     # 截止日期格式的"单一权威源"助手：定义全应用统一的日期格式常量与严格解析逻辑。
 │   ├── FolderName.cs                                  # 文件夹名称的"单一权威源"校验助手：Trim + 非空 + MaxLength。
 │   ├── MyFolder.cs                                    # 文件夹数据模型（纯数据，无业务逻辑）。
 │   ├── TaskPriority.cs                                # 任务优先级。低→高代表紧急/重要程度的递增。
 │   ├── TaskTitle.cs                                   # 任务标题的"单一权威源"校验助手：Trim + 非空 + MaxLength。
-│   └── TodoItem.cs                                    # 任务数据模型（纯数据，无业务逻辑）。
+│   ├── TodoItem.cs                                    # 任务数据模型（纯数据，无业务逻辑；含截止日期、优先级、文件夹归属与完成时间 completedAt）。
+│   └── UiTheme.cs                                     # 主题枚举（System/Light/Dark）的单一权威定义（阶段六）。
 ├── packaging                                          # Linux 打包资产：工具链与安装进系统的文件（均强制 LF 检出）。
 │   ├── Dockerfile                                     # 打包镜像：ruby + rpm + binutils + 固定版本 fpm（打包工具链唯一权威源）。
 │   ├── postremove.sh                                  # rpm %postun：补清理卸载后残留的空目录 /opt/todolist。
@@ -166,7 +167,7 @@ TodoList/
 ├── AGENTS.md
 ├── AI_CONSTITUTION.md
 ├── App.axaml
-├── App.axaml.cs                                       # 装配：SQLite(单一权威源) → Repository → ViewModel；数据落点交给 Database/DataPaths 解析。
+├── App.axaml.cs                                       # 装配：SQLite(单一权威源) → Repository → ViewModel（注入时钟回调）；启动读 config.json 应用主题并注入切换回调与备份能力（IDatabaseBackup）；数据落点交给 Database/DataPaths 解析。
 ├── app.manifest
 ├── CLAUDE.md
 ├── config.json
@@ -199,11 +200,11 @@ SQLite（权威源） ←─ DatabaseService ←─ TodoRepository（只读投�
 
 ## 📂 数据存储位置
 
-数据目录与数据库文件名在 `config.json` **单一权威定义**一次（`data.directory`、`data.dbFileName`），`App.axaml.cs` 读取它，不在代码里重复硬编码。
+数据目录与数据库文件名在 `config.json` **单一权威定义**一次（`data.directory`、`data.dbFileName`），`App.axaml.cs` 读取它，不在代码里重复硬编码；`appearance.theme`（主题，阶段六）同样由此文件持久化，读写集中在 `Database/DataPaths.cs`。
 
-实际数据库文件位于项目根 `/被定义的目录/文件名`（默认 `data/todo.db`）。`App.axaml.cs` 的 `ResolveProjectRoot()` 从输出目录向上定位项目根；发布环境无 `.csproj`/`.slnx` 标记时回退到程序输出目录。
+实际数据库文件位于项目根 `/被定义的目录/文件名`（默认 `data/todo.db`）。`App.axaml.cs` 的 `TryFindProjectRoot()` 从输出目录向上定位项目根；发布环境无 `.csproj`/`.slnx` 标记时回退到可执行文件所在目录。
 
-`data/` 已被 `.gitignore` 排除，数据库不会进入版本库（`config.json` 本身会提交）。
+`data/` 与 `todolist-backup-*.db`（备份导出快照）已被 `.gitignore` 排除，不会进入版本库（`config.json` 本身会提交）。
 
 ## 📁 文档目录
 
