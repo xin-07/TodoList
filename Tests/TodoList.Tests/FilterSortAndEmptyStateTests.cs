@@ -154,6 +154,82 @@ public class FilterSortAndEmptyStateTests : IDisposable
         Assert.Equal(new[] { "低任务", "高任务" }, vm.DisplayItems.Select(v => v.Title));
     }
 
+    // ---- T4.2.4 已完成沉底（勾选后沉底；组内创建时间新→旧；全局恒定；取消归位） ----
+
+    [Fact]
+    public void 勾选完成后_任务沉底到已完成区_默认排序下同样生效()
+    {
+        var repo = NewRepository();
+        repo.Add("甲");
+        repo.Add("丙");
+        var vm = new MainWindowViewModel(repo);
+
+        // 乙定高优先级后置顶，默认序为 [乙, 甲, 丙]。
+        repo.Add("乙");
+        repo.SetPriority(repo.Items.First(t => t.Title == "乙").Id, TaskPriority.High);
+        Assert.Equal(new[] { "乙", "甲", "丙" }, vm.DisplayItems.Select(v => v.Title));
+
+        // 完成低优先级且无日期的甲，也要越过未完成区沉到最底。
+        repo.SetCompleted(repo.Items.First(t => t.Title == "甲").Id, true);
+        Assert.Equal(new[] { "乙", "丙", "甲" }, vm.DisplayItems.Select(v => v.Title));
+    }
+
+    [Fact]
+    public void 已完成区内部_恒按创建时间新到旧排列()
+    {
+        var repo = NewRepository();
+        repo.Add("晚建先勾");
+        repo.Add("早建后勾");
+
+        // 仓库无 CreatedAt 写入口（与既有"创建时间排序"用例同因），测试直接设定明确时间。
+        repo.Items.First(t => t.Title == "晚建先勾").CreatedAt = new DateTime(2026, 1, 2, 0, 0, 0);
+        repo.Items.First(t => t.Title == "早建后勾").CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0);
+
+        var vm = new MainWindowViewModel(repo);
+
+        // "晚建先勾"先完成，"早建后勾"后完成；沉底段内仍按创建时间新→旧，而非勾选先后。
+        repo.SetCompleted(repo.Items.First(t => t.Title == "晚建先勾").Id, true);
+        repo.SetCompleted(repo.Items.First(t => t.Title == "早建后勾").Id, true);
+
+        Assert.Equal(new[] { "晚建先勾", "早建后勾" }, vm.DisplayItems.Select(v => v.Title));
+    }
+
+    [Fact]
+    public void 切换排序后_已完成区仍沉底且组内创建时间新到旧不变()
+    {
+        var repo = NewRepository();
+        repo.Add("远期");
+        repo.Add("无期");
+        repo.Add("新完成");
+        var vm = new MainWindowViewModel(repo);
+
+        repo.SetCompleted(repo.Items.First(t => t.Title == "远期").Id, true);
+        repo.SetCompleted(repo.Items.First(t => t.Title == "新完成").Id, true);
+
+        // 给已完成的"远期"设最近截止日期：切到截止排序后若不沉底将排未完成区之前。
+        repo.SetDueDate(repo.Items.First(t => t.Title == "远期").Id, DateTime.Today.AddDays(1));
+        vm.SortBy = vm.SortOptions.First(o => o.Key == MainWindowViewModel.SortDueDate);
+
+        // 未完成区只剩"无期"；已完成区保持创建时间新→旧（新完成 > 远期）。
+        Assert.Equal(new[] { "无期", "新完成", "远期" }, vm.DisplayItems.Select(v => v.Title));
+    }
+
+    [Fact]
+    public void 取消勾选后_按当前排序规则归位到未完成区()
+    {
+        var repo = NewRepository();
+        repo.Add("甲");
+        repo.Add("乙");
+        var vm = new MainWindowViewModel(repo);
+
+        repo.SetCompleted(repo.Items.First(t => t.Title == "甲").Id, true);
+        Assert.Equal(new[] { "乙", "甲" }, vm.DisplayItems.Select(v => v.Title));
+
+        // 取消完成：同为普通优先级，未完成区并列时按创建时间旧→新，回到原位。
+        repo.SetCompleted(repo.Items.First(t => t.Title == "甲").Id, false);
+        Assert.Equal(new[] { "甲", "乙" }, vm.DisplayItems.Select(v => v.Title));
+    }
+
     // ---- 增量 diff 回归 ----
 
     [Fact]

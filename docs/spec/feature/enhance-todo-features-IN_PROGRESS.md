@@ -226,6 +226,7 @@
     - [x] T4.2.1 ViewModel：新增 `StatusFilter`/`PriorityFilter`/`SortBy` 属性 + 选项列表 + 变更时重跑 `ApplyFilter()`/`Reorder()`；`ApplyFilter` 叠加状态与优先级条件（保持增量 diff，禁 Reset）
     - [x] T4.2.2 UI：顶部工具条加两个筛选下拉 + 一个排序下拉，绑定上述属性
     - [x] T4.2.3 `Reorder()` 支持三种排序方向：优先级高→低（默认）/ 截止近→远（无日期最后）/ 创建新→旧
+    - [x] T4.2.4 已完成沉底（2026-10-25 用户定案追加）：勾选完成 → 沉入底部已完成段；沉底段内恒按创建时间新→旧（与勾选先后无关）；全局恒定显示规则（重启加载/切视图/搜索筛选/排序下拉切换下均成立；排序下拉只作用于未完成区）；取消勾选按当前排序规则归位未完成区。`Reorder()` 改为"未完成区(按所选排序) + 已完成区(创建时间新→旧)"两段拼接，勾选/取消沿用既有 `SetCompleted → Changed → OnRepoChanged → Reorder+ApplyFilter` 链路；`FilterSortAndEmptyStateTests` 新增 4 用例
   - [x] T4.3 空状态提示控件
     - [x] T4.3.1 ViewModel：`IsEmpty`/`EmptyStateText`/`HasActiveFilter` + `ClearFiltersCommand`（重置状态/优先级/搜索，保留排序与边栏视图）
     - [x] T4.3.2 UI：列表为空时显示引导文案（三态区分），有筛选时附"清除筛选"按钮

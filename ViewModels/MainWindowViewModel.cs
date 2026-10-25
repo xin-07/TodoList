@@ -604,8 +604,10 @@ public class MainWindowViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// 按当前排序方式重排展示列表：优先级高→低（默认，保持原行为）、
-    /// 截止日期近→远（无日期排最后）、创建时间新→旧。
+    /// 将展示列表重排为两段：未完成区按当前排序方式（优先级高→低默认 / 截止近→远无日期最后 /
+    /// 创建时间新→旧），已完成区恒定沉底、段内按创建时间新→旧——全局恒定显示规则，
+    /// 不受排序下拉影响（重启加载、视图切换、搜索筛选、排序切换下均成立）；
+    /// 取消勾选则按当前排序规则归位未完成区。
     /// 仅重排权威展示序列 <see cref="_display"/>，过滤视图顺序由随后调用的 ApplyFilter 对齐。
     /// </summary>
     private void Reorder()
@@ -613,20 +615,30 @@ public class MainWindowViewModel : ViewModelBase
         if (_display.Count < 2)
             return;
 
-        var target = _sortBy.Key switch
+        var incomplete = _sortBy.Key switch
         {
             SortCreatedAt => _display
+                .Where(v => !v.Item.IsCompleted)
                 .OrderByDescending(v => v.Item.CreatedAt)
                 .ToList(),
             SortDueDate => _display
+                .Where(v => !v.Item.IsCompleted)
                 .OrderBy(v => v.Item.DueDate ?? DateTime.MaxValue)
                 .ThenBy(v => v.Item.CreatedAt)
                 .ToList(),
             _ => _display
+                .Where(v => !v.Item.IsCompleted)
                 .OrderByDescending(v => v.PriorityRank)
                 .ThenBy(v => v.Item.CreatedAt)
                 .ToList(),
         };
+
+        // 已完成区：恒定沉底，段内按创建时间新→旧（与排序下拉选择无关）。
+        var completed = _display
+            .Where(v => v.Item.IsCompleted)
+            .OrderByDescending(v => v.Item.CreatedAt);
+
+        var target = incomplete.Concat(completed).ToList();
 
         var current = _display.ToList();
         for (var i = 0; i < target.Count; i++)
